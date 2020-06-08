@@ -387,7 +387,7 @@ siteGeoInfoTab <- siteGeoInfoSF %>%
 ```
 
 
-```{r fig.cap = "Example of a few sections of one transect. Starting points in blue, endpoints in red, centroids in black. Notice that the order of the start and end point of the individual sections doesn't necessarily follow the transect in a continuous way. We would need to sort this out in the source database."}
+```{r section_points, fig.cap = "Example of a few sections of one transect. Starting points in blue, endpoints in red, centroids in black. Notice that the order of the start and end point of the individual sections doesn't necessarily follow the transect in a continuous way. We would need to sort this out in the source database."}
 ##Sanity check plot
 ##Seems to work, but the start and endpoints of the sections seem to be random.
 tt <- siteGeoInfoTab %>% 

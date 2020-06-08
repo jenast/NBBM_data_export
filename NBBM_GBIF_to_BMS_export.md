@@ -4,6 +4,8 @@ arrangement for BMS
 Jens Åström
 08 June, 2020
 
+To-do: Figure captions doesn’t work in github\_documents.
+
 # Intro
 
 This is…
@@ -139,7 +141,7 @@ transectEvent <- transectEvent %>%
 ```
 
     ##    user  system elapsed 
-    ##  32.776   0.375  33.154
+    ##  33.337   0.584  33.923
 
 A sample of the extacted data:
 
@@ -594,7 +596,7 @@ tt %>%
 endpoints in red, centroids in black. Notice that the order of the start
 and end point of the individual sections doesn’t necessarily follow the
 transect in a continuous way. We would need to sort this out in the
-source database.](figure/unnamed-chunk-20-1.png)
+source database.](figure/section_points-1.png)
 
 ``` r
 siteGeoInfoTab <- siteGeoInfoTab %>% 
