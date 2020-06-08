@@ -1,0 +1,480 @@
+---
+title: "Data export of bumblebees and butterflies from the NINA IPT and arrangement for BMS"
+author: "Jens Åström"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  NinaR::jensAnalysis:
+    highlight: tango
+    fig_caption: yes
+    toc: yes
+---
+
+
+```{r, include = F}
+#Some common packages, loading rmarkdown doesn't like the messages from tidyverse, so we don't include this in the document'
+require(tidyverse)
+require(DBI)
+require(RPostgres)
+require(ggplot2)
+require(xtable)
+require(NinaR)
+require(lubridate)
+require(rjson)
+require(dbplyr)
+require(sf)
+require(ggplot2)
+require(maps)
+require(tidyjson)
+```
+
+```{r setup, include=FALSE}
+#This is optional
+#I choose the 'styler' package for tidying the code to preserve indentations
+#I set the cutoff for code tidying to 60, but this doesn't currently work with styler.
+#Set tidy = True to get the knitr default
+#I want all figures as png and pdf in high quality in a subfolder called figure 
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      tidy = "styler",
+                      dev = c("png", "pdf"),
+                      dpi = 600,
+                      fig.path = "figure/",
+                      tidy.opts = list(width.cutoff = 60)
+                      )
+
+options(xtable.comment = F, 
+        xtable.include.rownames = F, 
+        nina.logo.y.pos = 0.15)
+palette(ninaPalette())
+```
+
+
+Intro
+=========
+This is...
+
+Data structure
+---------------
+The data has a hierarchical nature, in that we have 1) several observations within a 50 meter transect, 2) several transect walks within each survey square, and 3) several visits to each survey square throughout the years. This structure is handled within the GBIF structure through the Darwin Event Core-standard. Here, the observation records are located in a "occurrence"-table, which is linked to an "event"-table. Within the event table, there can be multiple levels of "parent-events". In our case, the 50 meter transect walks represent the base-level event. They are linked to a parent-event that is the whole visit to the entire survey square, containing 20 such transect walks. By this design, you can have an arbitrary number of parent events (hierarchical levels) within the same table, instead of normalizing the data across several tables. The catch is that you have to keep track of the eventID's and the parentEventID's to recreate the original data structure.
+
+
+Fetching the data from the NINA IPT (A GBIF NODE)
+==========
+To come...
+
+Temporary export from source database
+==========
+Before the GBIF/IPT source is set up, we can get the data directly from the source database.
+
+
+```{r, include = F, eval = F}
+#This connects to the gisdatabase with a DBI connection named `con`.
+#Use for example dbGetQuery(con, "SELECT * FROM ....") to query the database
+source("~/.rpgpass")
+con <- dbConnect(Postgres(),
+                 host = "ninradardata01.nina.no", 
+                 dbname = "humlesommerf", 
+                 user = username, 
+                 password = password)
+
+```
+
+The data is exported through three (materialized) views in the database.
+```{r}
+parentEventRaw <- tbl(con, in_schema("views", "parent_event_flate")) 
+transectEventRaw <- tbl(con, in_schema("views", "event_transect")) 
+occurrenceRaw <- tbl(con, in_schema("views", "occurrence")) 
+
+```
+
+
+Arrange the data to the BMS format (Butterfly monitoring )
+=======
+Note that in this format, the 1.5x1.5km survey squares are named "transects", and the 20, 50m transects within these are named "sections". In the original data, we have specific data on time, temperature, and cloud cover for each "section". In rare occurrences, the "transects" can also be split over two days, so that there is two dates for a single "transect"-visit.
+
+We have two options here. Either provide the data on the original resolution, with unique values per section-visit, or aggregate the values somehow to the "transect" (square-visit) resolution. We will provide both solutions.
+
+
+Subset the butterflies
+-----------
+The original data also contains bumblebees, so here we subset the lepidoptera. 
+
+NB! also subset on year...Check what they want.
+
+```{r}
+lepiRaw <- occurrenceRaw %>% 
+  filter(order == "Lepidoptera") %>% 
+  collect()
+
+lepiRaw
+```
+
+
+Split the information in the dynamic properties column into separate columns
+-----------
+The GBIF standard doesn't accept all the column names we have, and these are bundled together in to a JSON-string.
+```{r}
+transectEventRaw %>% 
+  select(dynamicProperties) %>% 
+  head(1)
+```
+
+This is a bit cumbersome but the best I've found so far. The `tidyjson` package seem to have pretty poor performance on large datasets. I had a go at `map` and `fromJSON` but that seems broken at the moment.
+
+```{r, echo = F eval = F}
+##Doesn't work anymore, not sure why. Have to use tidyjson instead.
+transectEvent<- transectEventRaw %>% 
+  collect()  %>% 
+  mutate(dyn = map(dynamicProperties, fromJSON)) %>% 
+  unnest_wider(col = dyn)
+
+```
+
+```{r}
+system.time({
+transectEvent <- transectEventRaw %>% 
+  collect() %>% 
+  mutate(`document.id` = 1:nrow(.))
+
+tempDynamic <- transectEventRaw %>% 
+  #head() %>% 
+  select(dyn = dynamicProperties) %>% 
+  collect() %>% 
+  unlist() %>% 
+  spread_all()  %>% 
+  as_tibble()
+
+
+transectEvent <- transectEvent %>% 
+  left_join(tempDynamic,
+            by = c("document.id" = "document.id"))
+})
+
+```
+
+
+A sample of the extacted data:
+```{r}
+transectEvent %>% 
+  select(observerID,
+         habitatType,
+         `cloudCover%`,
+         temperatureCelsius,
+         flowerCover0123) %>% 
+  head()
+```
+
+Split the event times into start and end times
+---------
+The GBIF format has a single column for event time, where we have stored the start and the end times. These need to be split into separate columns. First the transect
+```{r}
+transectEvent <- transectEvent %>% 
+    separate(eventTime, 
+           c("start_time", "end_time"), 
+           sep = "/") %>% 
+  mutate(start_time = as.POSIXct(start_time),
+         end_time = as.POSIXct(end_time))
+
+
+
+```
+
+Then the parent events ("transects" in BMS lingo). Note that we need to collect the data from the database and not use lazy queries. 
+
+```{r}
+parentEvent <- parentEventRaw %>% 
+    collect() %>% 
+      separate(eventTime, 
+           c("start_time", "end_time"), 
+           sep = "/") %>% 
+  mutate(start_time = as.POSIXct(start_time),
+         end_time = as.POSIXct(end_time)) 
+
+```
+
+
+
+Join occurrence, event_transect, and parent_event_rute tables
+---------------
+```{r}
+occTrans <- lepiRaw %>%
+  left_join(transectEvent, 
+             by = c("eventID" = "eventID"),
+             suffix = c(".occurr", ".section")) %>% 
+  left_join(parentEvent,
+            by = c("parentEventID" = "eventID"),
+            suffix = c(".section", ".transect"))
+  
+occTrans %>% 
+  print(n = 1, width = Inf)
+```
+
+
+
+Arrange butterfly count data table
+-----------
+
+```{r}
+colnames(occTrans)
+
+lepiCountTab <- occTrans %>% 
+  select(visit_ID = parentEventID,
+         transect_ID = locationID.transect,
+         section = locationID.section, #Note that we use unique identifiers here, not ids that needs to be nested within transects.
+         date = eventDate.transect, 
+         species_name = scientificName,
+         count = individualCount
+         )
+
+lepiCountTab
+```
+
+Alter some species names to fit BMS nomenclature
+```{r}
+lepiCountTab %>% 
+  select(species_name) %>% 
+  distinct() %>% 
+  arrange(species_name) %>% 
+  print(n = Inf)
+
+lepiCountTab <- lepiCountTab %>% 
+  mutate(species_name = ifelse(species_name == 'Colias croceus', 'Colias crocea', species_name))
+```
+
+
+
+Arrange monitoring visit table
+-----------------
+As mentioned above, we will arrange the data both on the "transect" (survey square) and the "section" (50m transect) level.
+
+Section level arrangement.
+
+```{r}
+monVisTabSection <-  occTrans %>% 
+  mutate(wind = NA, #We don't have wind data
+         completed = 1, #All recorded transects are completed
+         start_time = strftime(start_time.section, format = "%H:%M:%S"), #Remove the date part of the starting time
+         end_time = strftime(end_time.section, format = "%H:%M:%S")) %>%
+  select(visit_ID = parentEventID,
+         recorder_id = observerID,
+         transect_ID = locationID.transect,
+         section = locationID.section,
+         date = eventDate.section,
+         start_time,
+         end_time,
+         temperature = temperatureCelsius,
+         cloud = `cloudCover%`,
+         wind,
+         completed) %>% 
+  distinct()
+    
+monVisTabSection
+```
+
+The corresponding operation on the transect level (survey square)
+
+```{r}
+monVisTabTransect <-  occTrans %>% 
+  mutate(wind = NA, #We don't have wind data
+         completed = 1, #All recorded transects are completed
+         start_time = strftime(start_time.transect, format = "%H:%M:%S"), #Remove the date part of the starting time
+         end_time = strftime(end_time.transect, format = "%H:%M:%S")) %>%
+  select(visit_ID = parentEventID,
+         recorder_id = observerID,
+         transect_ID = locationID.transect,
+         date = eventDate.transect,
+         start_time,
+         end_time,
+         temperature = temperatureCelsius,
+         cloud = `cloudCover%`,
+         wind,
+         completed) %>% 
+  distinct()
+
+
+##Aggregate the data on the transect (survey square) level
+monVisTabTransect <- monVisTabTransect %>% 
+  group_by(visit_ID) %>% 
+  summarise(recorder_id = min(recorder_id), #Use the first recorder, if several has divided the sections up between them
+            transect_ID = min(transect_ID), #Has only one value per survey event
+            date = min(date),
+            start_time = min(start_time),
+            end_time = max(end_time),
+            temperature = mean(temperature),
+            cloud = mean(cloud),
+            wind = mean(wind),
+            completed = mean(completed))
+   
+monVisTabTransect
+```
+
+
+Arrange teh site geographical information table
+-------------
+This contains the geographical information of the individual survey sections.
+
+```{r}
+siteGeoInfo <- occTrans %>% 
+  select(transect_ID = locationID.transect,
+         section = locationID.section,
+         decimalLatitude.section,
+         decimalLongitude.section,
+         footprintwkt.section) %>% 
+  distinct()
+
+##Register the geometry as SF object
+siteGeoInfoSF <- siteGeoInfo %>% 
+  st_as_sf(wkt = "footprintwkt.section",
+          crs = 4326) 
+#%>% 
+ # st_transform(crs = 25833)
+```
+
+
+```{r transect_loc, fig.cap = "Transect locations of the Norwegian bumblebee and butterfly monitoring"}
+world1 <- sf::st_as_sf(map('world', plot = FALSE, fill = TRUE))
+norway <- world1 %>% filter(ID == "Norway") 
+#%>% 
+ # st_transform(crs = 25833) #To be able to use st_cast
+
+plot(norway,
+     main = NULL,
+     reset = F,
+     col = "seagreen")
+
+plot(siteGeoInfoSF["transect_ID"], 
+     lwd = 4,
+     add = T)
+```
+
+It seems you have to jump through some hoops to get the start and end points from a linestring in `sf`.
+
+```{r}
+points <- siteGeoInfoSF %>% 
+  st_transform(crs = 25833) %>% 
+  st_cast("POINT",
+          ) %>% 
+  st_transform(4326) %>% 
+  select(section)
+
+#names(points)[names(points) == "footprintwkt.section"] <- "start_end_points"
+#st_geometry(points) <- "start_end_points"
+
+points <- as_tibble(points)
+
+points <- points %>% 
+  mutate(which = rep(c("start", "end"), nrow(.)/2)) %>% 
+  group_by(section, which) %>%
+  mutate(row = row_number()) %>% 
+  pivot_wider(values_from = footprintwkt.section,
+              names_from = which) %>% 
+  select(-row)
+
+
+siteGeoInfoTab <- siteGeoInfoSF %>% 
+  as_tibble() %>% 
+  right_join(points, by = c("section" = "section"))
+```
+
+
+```{r}
+##Sanity check plot
+##Seems to work, but the start and endpoints of the sections seem to be random.
+tt <- siteGeoInfoTab %>% 
+  st_as_sf(coords = c("decimalLongitude.section", "decimalLatitude.section"),
+           crs = 4326)
+
+
+tt %>% 
+  head() %>% 
+  select(transect_ID) %>% 
+  plot(reset = F)
+
+st_geometry(tt) <- "start"
+
+tt %>% 
+  head() %>% 
+  select(transect_ID) %>% 
+  plot(add = T,
+       col = "blue")
+
+st_geometry(tt) <- "end"
+
+tt %>% 
+  head() %>% 
+  select(transect_ID) %>% 
+  plot(add = T,
+       col = "red")
+
+st_geometry(tt) <- "geometry"
+
+tt %>% 
+  head() %>% 
+  select(transect_ID) %>% 
+  plot(add = T,
+       col = "black")
+
+```
+
+```{r}
+siteGeoInfoTab <- siteGeoInfoTab %>% 
+  mutate(lon_start_point = st_coordinates(start)[,1],
+         lat_start_point = st_coordinates(start)[,2],
+         lon_end_point = st_coordinates(end)[,1],
+         lat_end_point = st_coordinates(end)[,2],
+         SRID_for_all_coordinates = 4326,
+         monitoring_type = 2) %>% 
+  select(transect_ID,
+         section_ID = section,
+         lon_start_point,
+         lat_start_point,
+         lon_end_point,
+         lat_end_point,
+         lon_centroid = decimalLongitude.section,
+         lat_centroid = decimalLatitude.section,
+         SRID_for_all_coordinates,
+         monitoring_type
+         )
+
+siteGeoInfoTab
+```
+
+Add habitat type table
+------------
+We haven't differentiated between the sides of the transect, but only characterized the individual sections to be in either "grassland" or "forest". All sections are located in open/low vegetation, and most often align with roads or trails. 
+
+"Grassland" refers to habitats that are dominated by continuous clearing/grazing/plowing. A substantial part is lowland semi-natural grasslands, but the sections also span more intensively managed farmland.
+
+"Forest" refers to open but otherwise forested areas, which is dominated by managed forests but can include natural forests. These sections typically align with smaller gravel roads in conifer forests (mostly Norway spruce and Pine), but can include powerline clearings.
+
+```{r}
+habTypeTab <- occTrans %>% 
+  select(transect_ID = locationID.transect,
+         section_ID = locationID.section,
+         habitat_Type = habitatType
+) %>% 
+  distinct()
+
+
+```
+
+Species name table
+---------------
+The only discrepancy between the locally used latin names and tha Fauna Europea latin names is "Colias Croceus"/"Colias crocea".
+Note that some taxa are not distinguished to species.
+
+```{r}
+speciesNameTab <- occTrans %>% 
+  select(national_species_latin = scientificName,
+         fauna_europea_species_latin = scientificName,
+         local_species_norwegian = vernacularName) %>% 
+  mutate(national_species_latin = ifelse(national_species_latin == "Colias croceus", "Colias crocea", national_species_latin))
+
+speciesNameTab
+```
+
+
+**Todo**
+
+
+Gör github-repo, döp om skript.
