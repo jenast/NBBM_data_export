@@ -3,10 +3,7 @@ title: "Data export of bumblebees and butterflies from the NINA IPT and arrangem
 author: "Jens Åström"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
-  NinaR::jensAnalysis:
-    highlight: tango
-    fig_caption: yes
-    toc: yes
+  rmarkdown::github_document
 ---
 
 
@@ -48,9 +45,11 @@ options(xtable.comment = F,
 palette(ninaPalette())
 ```
 
+To-do: Figure captions doesn't work in github_documents.
 
 Intro
 =========
+
 This is...
 
 Data structure
@@ -67,19 +66,24 @@ Temporary export from source database
 Before the GBIF/IPT source is set up, we can get the data directly from the source database.
 
 
-```{r, include = F, eval = F}
+```{r, include = F, eval = T}
 #This connects to the gisdatabase with a DBI connection named `con`.
 #Use for example dbGetQuery(con, "SELECT * FROM ....") to query the database
 source("~/.rpgpass")
+
+
+```
+
+The data is exported through three (materialized) views in the database.
+
+```{r}
 con <- dbConnect(Postgres(),
                  host = "ninradardata01.nina.no", 
                  dbname = "humlesommerf", 
                  user = username, 
                  password = password)
-
 ```
 
-The data is exported through three (materialized) views in the database.
 ```{r}
 parentEventRaw <- tbl(con, in_schema("views", "parent_event_flate")) 
 transectEventRaw <- tbl(con, in_schema("views", "event_transect")) 
@@ -98,8 +102,6 @@ We have two options here. Either provide the data on the original resolution, wi
 Subset the butterflies
 -----------
 The original data also contains bumblebees, so here we subset the lepidoptera. 
-
-NB! also subset on year...Check what they want.
 
 ```{r}
 lepiRaw <- occurrenceRaw %>% 
@@ -121,7 +123,7 @@ transectEventRaw %>%
 
 This is a bit cumbersome but the best I've found so far. The `tidyjson` package seem to have pretty poor performance on large datasets. I had a go at `map` and `fromJSON` but that seems broken at the moment.
 
-```{r, echo = F eval = F}
+```{r, echo = F, eval = F}
 ##Doesn't work anymore, not sure why. Have to use tidyjson instead.
 transectEvent<- transectEventRaw %>% 
   collect()  %>% 
@@ -193,7 +195,6 @@ parentEvent <- parentEventRaw %>%
 ```
 
 
-
 Join occurrence, event_transect, and parent_event_rute tables
 ---------------
 ```{r}
@@ -205,8 +206,17 @@ occTrans <- lepiRaw %>%
             by = c("parentEventID" = "eventID"),
             suffix = c(".section", ".transect"))
   
-occTrans %>% 
-  print(n = 1, width = Inf)
+#occTrans %>% 
+#  print(n = 1, width = Inf)
+```
+
+Subset the data according to time
+--------------
+At this moment, the BMS only wants data up until including 2018, so we'll subset the joined table on the event dates. 
+
+```{r}
+occTrans <- occTrans %>% 
+  filter(eventDate.section < '2019-01-01')
 ```
 
 
@@ -215,7 +225,7 @@ Arrange butterfly count data table
 -----------
 
 ```{r}
-colnames(occTrans)
+#colnames(occTrans)
 
 lepiCountTab <- occTrans %>% 
   select(visit_ID = parentEventID,
@@ -245,7 +255,7 @@ lepiCountTab <- lepiCountTab %>%
 
 Arrange monitoring visit table
 -----------------
-As mentioned above, we will arrange the data both on the "transect" (survey square) and the "section" (50m transect) level.
+As mentioned above, we will arrange the data also on the "section" (50m transect) level, in addition to the "transect" (survey square) that the BMS asks for. This is because we have some information that is unique to individual transect sections (50m) that might be worth including. The transect level data simply takes the average values of the individual section level data. 
 
 Section level arrangement.
 
@@ -309,7 +319,7 @@ monVisTabTransect
 ```
 
 
-Arrange teh site geographical information table
+Arrange the site geographical information table
 -------------
 This contains the geographical information of the individual survey sections.
 
@@ -377,7 +387,7 @@ siteGeoInfoTab <- siteGeoInfoSF %>%
 ```
 
 
-```{r}
+```{r fig.cap = "Example of a few sections of one transect. Starting points in blue, endpoints in red, centroids in black. Notice that the order of the start and end point of the individual sections doesn't necessarily follow the transect in a continuous way. We would need to sort this out in the source database."}
 ##Sanity check plot
 ##Seems to work, but the start and endpoints of the sections seem to be random.
 tt <- siteGeoInfoTab %>% 
@@ -474,7 +484,27 @@ speciesNameTab
 ```
 
 
-**Todo**
+Export the data into CSV-files
+=============
 
+```{r, eval = F}
+write_csv(lepiCountTab,
+          path = out/ButterflyCountDataTable.csv)
 
-Gör github-repo, döp om skript.
+write_csv(monVisTabTransect,
+          path = out/MonitoringVisitTableTransectLevel.csv)
+
+write_csv(monVisTabSection,
+          path = out/MonitoringVisitTableSectionLevel.csv)
+
+write_csv(siteGeoInfoTab,
+          path = out/SiteGeographicalInformationTable.csv)
+
+write_csv(habTypeTab,
+          path = out/HabitatTypeTable.csv)
+
+write_csv(speciesNameTab,
+          path = out/SpeciesNameTable.csv)
+
+```
+
