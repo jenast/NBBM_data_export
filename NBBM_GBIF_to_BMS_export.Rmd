@@ -125,7 +125,7 @@ occurrenceRaw <- tbl(con, in_schema("views", "occurrence"))
 Temporary - store these as csv as a workaround for GBIF import
 =========
 
-```{r}
+```{r, eval = F}
 transectEventRaw %>% 
   collect() %>% 
   write.csv("out/toGBIF/parent_event_flate.csv",
