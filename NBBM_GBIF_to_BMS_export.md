@@ -2,7 +2,11 @@ Data export from the Norwegian Bumblebee and Butterfly Monitoring
 program
 ================
 Jens Åström
+<<<<<<< HEAD
 10 June, 2020
+=======
+09 June, 2020
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 
 # Introduction
 
@@ -108,6 +112,7 @@ sectionEventRaw <- tbl(con, in_schema("views", "event_transect"))
 occurrenceRaw <- tbl(con, in_schema("views", "occurrence")) 
 ```
 
+<<<<<<< HEAD
 # Temporary - store these as csv as a workaround for GBIF import
 
 ``` r
@@ -151,6 +156,8 @@ occurrenceRaw %>%
             row.names = F)
 ```
 
+=======
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 ## Subset the butterflies
 
 The original data also contains bumblebees, but the BMS only wants
@@ -169,6 +176,7 @@ lepiRaw
     ## # A tibble: 2,736,195 x 19
     ##    id    modified            basisOfRecord occurrenceID individualCount
     ##    <chr> <dttm>              <chr>         <chr>                  <int>
+<<<<<<< HEAD
     ##  1 7734… 2020-06-10 11:28:40 HumanObserva… fbd9d66c-33…               0
     ##  2 7734… 2020-04-20 11:53:51 HumanObserva… b29d723b-46…               0
     ##  3 7734… 2020-06-05 13:22:50 HumanObserva… a75961c9-26…               0
@@ -179,6 +187,18 @@ lepiRaw
     ##  8 7734… 2020-06-10 11:28:40 HumanObserva… 81d33931-bd…               0
     ##  9 7734… 2020-06-10 11:28:40 HumanObserva… 7773db3b-25…               0
     ## 10 7734… 2020-04-20 11:53:51 HumanObserva… 76178acd-66…               0
+=======
+    ##  1 7734… 2020-06-05 13:22:50 HumanObserva… ebf2e6bc-2a…               0
+    ##  2 7734… 2020-04-20 11:53:51 HumanObserva… fa3d5449-42…               0
+    ##  3 7734… 2020-04-20 11:53:51 HumanObserva… e3c39fad-3f…               0
+    ##  4 7734… 2020-04-20 11:53:51 HumanObserva… adf10c23-22…               0
+    ##  5 7734… 2020-06-06 08:13:15 HumanObserva… a51bf204-06…               0
+    ##  6 7734… 2020-06-06 08:13:15 HumanObserva… c28db937-3c…               0
+    ##  7 7734… 2020-06-06 08:13:15 HumanObserva… 4d085fc3-43…               0
+    ##  8 7734… 2020-06-05 13:26:53 HumanObserva… 4c9a2b9a-f1…               0
+    ##  9 7734… 2020-06-06 08:13:15 HumanObserva… 50149092-87…               0
+    ## 10 7734… 2020-06-06 08:13:15 HumanObserva… 452919fe-e7…               0
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
     ## # … with 2,736,185 more rows, and 14 more variables: occurrenceStatus <chr>,
     ## #   sex <chr>, lifeStage <chr>, eventID <chr>, taxonID <chr>,
     ## #   scientificName <chr>, vernacularName <chr>, kingdom <chr>, phylum <chr>,
@@ -235,7 +255,11 @@ sectionEvent <- sectionEvent %>%
 ```
 
     ##    user  system elapsed 
+<<<<<<< HEAD
     ##  29.378   0.267  29.647
+=======
+    ##  33.873   1.284  35.160
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 
 The new columns contain a habitat type classification, cloud cover in %,
 temperature, and a 4 level classification of the total flower cover for
@@ -389,13 +413,18 @@ lepiCountTab <- occTrans %>%
          date = eventDate.transect, 
          species_name = scientificName,
          count = individualCount
+<<<<<<< HEAD
          ) %>% 
   arrange(visit_ID, transect_ID, section_ID, date, species_name)
+=======
+         )
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 
 lepiCountTab
 ```
 
     ## # A tibble: 2,426,474 x 6
+<<<<<<< HEAD
     ##    visit_ID       transect_ID      section_ID     date       species_name  count
     ##    <chr>          <chr>            <chr>          <date>     <chr>         <int>
     ##  1 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Adscita stat…     0
@@ -408,6 +437,20 @@ lepiCountTab
     ##  8 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aphantopus h…     0
     ##  9 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aporia crata…     0
     ## 10 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Argynnis pap…     0
+=======
+    ##    visit_ID      transect_ID      section_ID     date       species_name   count
+    ##    <chr>         <chr>            <chr>          <date>     <chr>          <int>
+    ##  1 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Fabriciana ad…     0
+    ##  2 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Vanessa cardui     0
+    ##  3 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Boloria selene     0
+    ##  4 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Carterocephal…     0
+    ##  5 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Boloria eunom…     0
+    ##  6 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Zygaena viciae     0
+    ##  7 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Thecla betulae     0
+    ##  8 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Polygonia c-a…     0
+    ##  9 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Erebia polaris     0
+    ## 10 e5b7974c-9df… d53aef1f-7502-4… dfb9272e-be2a… 2013-05-26 Boloria impro…     0
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
     ## # … with 2,426,464 more rows
 
 We need to alter some species names to fit the BMS nomenclature. It
@@ -896,12 +939,17 @@ speciesNameTab <- occTrans %>%
   select(national_species_latin = scientificName,
          fauna_europea_species_latin = scientificName,
          local_species_norwegian = vernacularName) %>% 
+<<<<<<< HEAD
   mutate(national_species_latin = ifelse(national_species_latin == "Colias croceus", "Colias crocea", national_species_latin)) %>% 
   distinct()
+=======
+  mutate(national_species_latin = ifelse(national_species_latin == "Colias croceus", "Colias crocea", national_species_latin))
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 
 speciesNameTab
 ```
 
+<<<<<<< HEAD
     ## # A tibble: 103 x 3
     ##    national_species_latin fauna_europea_species_latin local_species_norwegian   
     ##    <chr>                  <chr>                       <chr>                     
@@ -918,12 +966,31 @@ speciesNameTab
     ## # … with 93 more rows
 
 # Export the BMS data into CSV-files
+=======
+    ## # A tibble: 2,426,474 x 3
+    ##    national_species_latin    fauna_europea_species_lat… local_species_norwegian 
+    ##    <chr>                     <chr>                      <chr>                   
+    ##  1 Fabriciana adippe         Fabriciana adippe          Adippeperlemorvinge     
+    ##  2 Vanessa cardui            Vanessa cardui             Tistelsommerfugl        
+    ##  3 Boloria selene            Boloria selene             Brunflekket Perlemorvin…
+    ##  4 Carterocephalus silvicola Carterocephalus silvicola  Svartflekksmyger        
+    ##  5 Boloria eunomia           Boloria eunomia            Ringperlemorvinge       
+    ##  6 Zygaena viciae            Zygaena viciae             Liten Bloddråpesvermer  
+    ##  7 Thecla betulae            Thecla betulae             Slåpetornstjertvinge    
+    ##  8 Polygonia c-album         Polygonia c-album          Hvit C                  
+    ##  9 Erebia polaris            Erebia polaris             Polarringvinge          
+    ## 10 Boloria improba           Boloria improba            Dvergperlemorvinge      
+    ## # … with 2,426,464 more rows
+
+# Export the data into CSV-files
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
 
 We are now ready to export the tables. Here, we use the csv-format. We
 use the default encoding (UTF-8).
 
 ``` r
 write_csv(lepiCountTab,
+<<<<<<< HEAD
           path = "out/ButterflyCountDataTable.csv")
 
 write_csv(monVisTabTransect,
@@ -1054,3 +1121,22 @@ all(lepiCountTab == lepiCountTabRecreatedZeroes)
 ```
 
     ## [1] TRUE
+=======
+          path = out/ButterflyCountDataTable.csv)
+
+write_csv(monVisTabTransect,
+          path = out/MonitoringVisitTableTransectLevel.csv)
+
+write_csv(monVisTabSection,
+          path = out/MonitoringVisitTableSectionLevel.csv)
+
+write_csv(siteGeoInfoTab,
+          path = out/SiteGeographicalInformationTable.csv)
+
+write_csv(habTypeTab,
+          path = out/HabitatTypeTable.csv)
+
+write_csv(speciesNameTab,
+          path = out/SpeciesNameTable.csv)
+```
+>>>>>>> 305a67b1d9602ced8ec1111a5f3208d635d59098
