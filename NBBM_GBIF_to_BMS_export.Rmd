@@ -1,26 +1,23 @@
 ---
 title: "Data export from the Norwegian Bumblebee and Butterfly Monitoring program"
-subtitle: "With data formatting for the European Butterfly Monitoring Scheme"
 author: "Jens Åström"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   rmarkdown::github_document
 ---
+**With data formatting for the European Butterfly Monitoring Scheme**
 
 
 ```{r, include = F}
-#Some common packages, loading rmarkdown doesn't like the messages from tidyverse, so we don't include this in the document'
 require(tidyverse)
+require(NinaR)
+```
+
+```{r, include = T, warnings = F, message = FALSE, results = 'hide'}
+#We also load tidyverse, which doesn't format well in markdown. Not shown.
 require(DBI)
 require(RPostgres)
-require(ggplot2)
-require(xtable)
-require(NinaR)
-require(lubridate)
-#require(rjson)
-require(dbplyr)
 require(sf)
-require(ggplot2)
 require(maps)
 require(tidyjson)
 ```
@@ -55,28 +52,40 @@ Data structure
 ---------------
 The data has a hierarchical nature, where we have 1) observations of the individual counts of each bumblebee and butterfly species within a 50 meter transect, 2) several such transects within each survey square (20 transects that of in total 1000m), and 3) several visits to each survey square throughout the years (typically 3 visits each year). The data contains a lot of individual counts of zero, as we include also zero-records of all the species found earlier in the project, plus potential additional species that think could have been recorded. The list of species might expand in the future as new species are recorded. 
 
-The hierarchical structure is handled within the GBIF structure through the Darwin Event Core-standard. Here, the observation records of species are located in an "occurrence"-table, which is linked to an "event"-table. Within the event table, there can be multiple levels of "parent-events". In our case, the 50 meter transect walks represent the base-level event. The centroid of the transects are used as the point geometry for the individual observations (latitude, longitude), although the observations could have been performed along the whole 50 m transect. The linestring-geometry of the whole 50m section is also included as a "footprintwkt" for each event. These events are linked to a parent-event that represents the whole visit to the entire survey square, thus containing 20 such transect walks. By this design of GBIF, you can have an arbitrary number of parent events (hierarchical levels) within the same table, instead of normalizing the data across several tables. The downside is that you need to keep track of the eventID's and the parentEventID's to recreate the original data structure.
+The hierarchical structure is handled within the GBIF structure through the Darwin Event Core-standard. Here, the observation records of species are located in an "occurrence"-table, which is linked to an "event"-table. Within the event table, there can be multiple levels of "parent-events". In our case, the 50 meter transect walks represent the base-level event. The centroid of the transects are used as the point geometry for the individual observations (latitude, longitude), although the observations could have been performed along the whole 50 m transect. The linestring-geometry of the whole 50m section is also included as a "footprintWKT" for each event. These events are linked to a parent-event that represents the whole visit to the entire survey square, thus containing 20 such transect walks. By this design of GBIF, you can have an arbitrary number of parent events (hierarchical levels) within the same table, instead of normalizing the data across several tables. The downside is that you need to keep track of the eventID's and the parentEventID's to recreate the original data structure.
 
 
 Fetching the data from GBIF
 ==========
-To come...something like this, from Erlend:
+Here we show how to get the source data from GBIF. 
 
 ```{r, eval = F}
-datasetID <- "c47f13c1-7427-45a0-9f12-237aad351040"
-dataset <- RJSONIO::fromJSON(paste0("http://api.gbif.org/v1/dataset/",datasetID,"/endpoint"))
+datasetID <- "4f829580-180d-46a9-9c87-ed8ec959b545"
+datasetURL <-  paste0("http://api.gbif.org/v1/dataset/",datasetID,"/endpoint")
+dataset <- RJSONIO::fromJSON()
 endpoint_url <- dataset[[1]]$url # extracting URL from API call result
+```
+The endpoint for our dataset looks like this: 
+* http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020
 
 
-# Download from dwc-a from IPT  putting into data folder;
-download.file(endpoint_url, destfile="data/temp.zip", mode="wb")
-unzip ("data/temp.zip", exdir = "data")
+With the endpoint, we can download the data in a zipped format.
+```{r, eval = T}
+endpoint_url <- "http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020"
+# Download from dwc-a from IPT  putting into data folder
+download.file(endpoint_url, destfile="GBIF_data/gbif_download.zip", mode="wb")
 
 ```
+We unzip it in the same folder.
+```{r, eval = T}
+unzip("GBIF_data/gbif_download.zip",
+      exdir = "GBIF_data")
+```
+
 
 Citation and meta-data
 ========
-To come...something like this, from Erlend:
+This data is freely available, but please cite the source. The citation can be fetched programmatically this way.
 
 ```{r, eval = F}
 # Suggested citation: Take the citation as from downloaded from GBIF website, replace "via GBIF.org" by endpoint url. 
@@ -85,6 +94,71 @@ download.file(paste0("http://api.gbif.org/v1/dataset/",datasetID,"/document"),tm
 meta <- read_xml(tmp) %>% as_list() # create list from xml schema
 gbif_citation <- meta$eml$additionalMetadata$metadata$gbif$citation[[1]] # extract citation
 citation <- gsub("GBIF.org", paste(endpoint_url), gbif_citation) # replace "gbif.org" with endpoint url
+```
+```{r}
+citation <- "to_come"
+```
+
+The citation to use is then: 
+- `r paste(citation)`
+
+
+Read in the raw GBIF files
+--------
+Read_delim parses some columns incorrectly, probably since the file starts with lots of null values. We here specify the data types manually.
+
+```{r}
+eventRaw <- read_delim("GBIF_data/event.txt", 
+                       delim = "\t",
+                       locale = locale(encoding = "UTF-8"),
+                       col_types = cols(id = col_character(),
+  type = col_character(),
+  modified = col_datetime(format = ""),
+  ownerInstitutionCode = col_character(),
+  dynamicProperties = col_character(),
+  eventID = col_character(),
+  parentEventID = col_character(),
+  samplingProtocol = col_character(),
+  sampleSizeValue = col_double(),
+  sampleSizeUnit = col_character(),
+  eventDate = col_datetime(format = ""),
+  eventTime = col_character(),
+  eventRemarks = col_character(),
+  locationID = col_character(),
+  country = col_character(),
+  countryCode = col_character(),
+  stateProvince = col_character(),
+  municipality = col_character(),
+  locality = col_character(),
+  locationRemarks = col_character(),
+  decimalLatitude = col_double(),
+  decimalLongitude = col_double(),
+  geodeticDatum = col_character(),
+  coordinateUncertaintyInMeters = col_double(),
+  footprintWKT = col_character(),
+  footprintSRS = col_character()
+))
+```
+
+We then split the event data into section events (with parent ID), and transect events (without parent ID's). If we would have more hierarchical levels, this would have been more convoluted.
+
+```{r}
+transectEventRaw <- eventRaw %>% 
+  filter(is.na(parentEventID))
+
+sectionEventRaw <- eventRaw %>% 
+  filter(!is.na(parentEventID))
+```
+
+The occurrence data reads in easier.
+```{r}
+occurrenceRaw <- read_delim("GBIF_data/occurrence.txt", 
+                       delim = "\t",
+                       locale = locale(encoding = "UTF-8")
+                       )
+
+
+
 ```
 
 
@@ -99,7 +173,7 @@ source("~/.rpgpass")
 ```
 
 The data is exported through three (materialized) views in the database. Here events (transect visits) and parent events (survey square visits) are accessed through separate views.
-```{r}
+```{r, eval = F}
 con <- dbConnect(Postgres(),
                  host = "ninradardata01.nina.no", 
                  dbname = "humlesommerf", 
@@ -116,57 +190,12 @@ The terminology of the BMS differ from the original dataset in an important way.
 
 Extracting the data from the GBIF raw format
 ============
-```{r}
+In the GBIF data, the two event tables will be combined into one.
+```{r, eval = F}
 transectEventRaw <- tbl(con, in_schema("views", "parent_event_flate")) 
 sectionEventRaw <- tbl(con, in_schema("views", "event_transect")) 
 occurrenceRaw <- tbl(con, in_schema("views", "occurrence")) 
 ```
-
-Temporary - store these as csv as a workaround for GBIF import
-=========
-
-```{r, eval = F}
-transectEventRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/parent_event_flate.csv",
-            quote = F,
-            row.names = F)
-
-sectionEventRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/event_transect.csv",
-            quote = F,
-            row.names = F)
-
-occurrenceRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/occurrence.csv",
-            quote = F,
-            row.names = F)
-
-transectEventRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/parent_event_flate_100_Lines.csv",
-            quote = F,
-            row.names = F)
-
-sectionEventRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/event_transect_100_Lines.csv",
-            quote = F,
-            row.names = F)
-
-occurrenceRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/occurrence_100_Lines.csv",
-            quote = F,
-            row.names = F)
-
-```
-
 
 Subset the butterflies
 -----------
@@ -321,7 +350,6 @@ lepiCountTab <- occTrans %>%
          ) %>% 
   arrange(visit_ID, transect_ID, section_ID, date, species_name)
 
-lepiCountTab
 ```
 
 We need to alter some species names to fit the BMS nomenclature. It turned out to be only one species names that was slightly different. Here are all the butterfly species in the dataset.
@@ -335,6 +363,12 @@ lepiCountTab %>%
 
 lepiCountTab <- lepiCountTab %>% 
   mutate(species_name = ifelse(species_name == 'Colias croceus', 'Colias crocea', species_name))
+```
+
+The butterfly count table is now ready.
+
+```{r}
+lepiCountTab
 ```
 
 
@@ -419,12 +453,12 @@ siteGeoInfo <- occTrans %>%
          section = locationID.section,
          decimalLatitude.section,
          decimalLongitude.section,
-         footprintwkt.section) %>% 
+         footprintWKT.section) %>% 
   distinct()
 
 ##Register the geometry as SF object
 siteGeoInfoSF <- siteGeoInfo %>% 
-  st_as_sf(wkt = "footprintwkt.section",
+  st_as_sf(wkt = "footprintWKT.section",
           crs = 4326) 
 #%>% 
  # st_transform(crs = 25833)
@@ -463,7 +497,7 @@ points <- points %>%
   mutate(which = rep(c("start", "end"), nrow(.)/2)) %>% 
   group_by(section, which) %>%
   mutate(row = row_number()) %>% 
-  pivot_wider(values_from = footprintwkt.section,
+  pivot_wider(values_from = footprintWKT.section,
               names_from = which) %>% 
   select(-row)
 
@@ -562,7 +596,7 @@ habTypeTab <- occTrans %>%
 ) %>% 
   distinct()
 
-
+habTypeTab
 ```
 
 Arrange the species name table
@@ -613,7 +647,7 @@ Extract zeroes to avoid large sample size
 --------------
 Since we include count data for all species for all surveys, the count table contains a huge amount of zeroes. This results in a file that is too large to store on github.
 
-However, it is possible to exlude the rows with zeroe individuals and recreate them in R afterwards. To do that, we can store all unique surveys, and the records with non zero counts. 
+However, it is possible to exlude the rows with zero individuals and recreate these in R afterwards. To do that, we can store all unique surveys, and the records with non zero counts. 
 
 ```{r}
 uniqueVisits <- lepiCountTab %>% 
@@ -628,7 +662,7 @@ lepiCountTabNoZeroes  <- lepiCountTab %>%
 
 
 ```
-Instead of storing 2.4 million rows, we are suddenly down to 23.5 thousand individual surveys, and a little over 9 thousand non zero observation, with no loss of information. We can store this in their own csv-files. We already have all species names stored in the species table.
+Instead of storing 2.4 million rows, we are suddenly down to 23.5 thousand individual surveys, and a little over 9 thousand non zero observation, with no loss of information. We store this in separate csv-files. We already have all species names stored in the species table.
 
 ```{r}
 write_csv(uniqueVisits,
@@ -673,11 +707,10 @@ lepiCountTabRecreatedZeroes <- zeroesToJoin %>%
 
 ```
 
-We can check that the recreated data matches the original.
+We can check that the recreated data matches the original. 
 
 ```{r}
 all(lepiCountTab == lepiCountTabRecreatedZeroes)
-
 
 ```
 

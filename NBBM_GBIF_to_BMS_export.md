@@ -2,7 +2,56 @@ Data export from the Norwegian Bumblebee and Butterfly Monitoring
 program
 ================
 Jens Åström
-10 June, 2020
+11 June, 2020
+
+``` r
+#We also load tidyverse, which doesn't format well in markdown. Not shown.
+require(DBI)
+```
+
+    ## Loading required package: DBI
+
+``` r
+require(RPostgres)
+```
+
+    ## Loading required package: RPostgres
+
+``` r
+require(sf)
+```
+
+    ## Loading required package: sf
+
+    ## Linking to GEOS 3.8.0, GDAL 3.0.4, PROJ 7.0.0
+
+``` r
+require(maps)
+```
+
+    ## Loading required package: maps
+
+    ## 
+    ## Attaching package: 'maps'
+
+    ## The following object is masked from 'package:purrr':
+    ## 
+    ##     map
+
+``` r
+require(tidyjson)
+```
+
+    ## Loading required package: tidyjson
+
+    ## 
+    ## Attaching package: 'tidyjson'
+
+    ## The following object is masked from 'package:stats':
+    ## 
+    ##     filter
+
+**With data formatting for the European Butterfly Monitoring Scheme**
 
 # Introduction
 
@@ -37,7 +86,7 @@ the base-level event. The centroid of the transects are used as the
 point geometry for the individual observations (latitude, longitude),
 although the observations could have been performed along the whole 50 m
 transect. The linestring-geometry of the whole 50m section is also
-included as a “footprintwkt” for each event. These events are linked to
+included as a “footprintWKT” for each event. These events are linked to
 a parent-event that represents the whole visit to the entire survey
 square, thus containing 20 such transect walks. By this design of GBIF,
 you can have an arbitrary number of parent events (hierarchical levels)
@@ -47,23 +96,39 @@ the parentEventID’s to recreate the original data structure.
 
 # Fetching the data from GBIF
 
-To come…something like this, from Erlend:
+Here we show how to get the source data from GBIF.
 
 ``` r
-datasetID <- "c47f13c1-7427-45a0-9f12-237aad351040"
-dataset <- RJSONIO::fromJSON(paste0("http://api.gbif.org/v1/dataset/",datasetID,"/endpoint"))
+datasetID <- "4f829580-180d-46a9-9c87-ed8ec959b545"
+datasetURL <-  paste0("http://api.gbif.org/v1/dataset/",datasetID,"/endpoint")
+dataset <- RJSONIO::fromJSON()
 endpoint_url <- dataset[[1]]$url # extracting URL from API call result
+```
 
+The endpoint for our dataset looks like this: \*
+<http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020>
 
-# Download from dwc-a from IPT  putting into data folder;
-download.file(endpoint_url, destfile="data/temp.zip", mode="wb")
-unzip ("data/temp.zip", exdir = "data")
+With the endpoint, we can download the data in a zipped
+format.
+
+``` r
+endpoint_url <- "http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020"
+# Download from dwc-a from IPT  putting into data folder
+download.file(endpoint_url, destfile="GBIF_data/gbif_download.zip", mode="wb")
+```
+
+We unzip it in the same folder.
+
+``` r
+unzip("GBIF_data/gbif_download.zip",
+      exdir = "GBIF_data")
 ```
 
 # Citation and meta-data
 
-To come…something like this, from
-Erlend:
+This data is freely available, but please cite the source. The citation
+can be fetched programmatically this
+way.
 
 ``` r
 # Suggested citation: Take the citation as from downloaded from GBIF website, replace "via GBIF.org" by endpoint url. 
@@ -73,6 +138,95 @@ meta <- read_xml(tmp) %>% as_list() # create list from xml schema
 gbif_citation <- meta$eml$additionalMetadata$metadata$gbif$citation[[1]] # extract citation
 citation <- gsub("GBIF.org", paste(endpoint_url), gbif_citation) # replace "gbif.org" with endpoint url
 ```
+
+``` r
+citation <- "to_come"
+```
+
+The citation to use is then: - to\_come
+
+## Read in the raw GBIF files
+
+Read\_delim parses some columns incorrectly, probably since the file
+starts with lots of null values. We here specify the data types
+manually.
+
+``` r
+eventRaw <- read_delim("GBIF_data/event.txt", 
+                       delim = "\t",
+                       locale = locale(encoding = "UTF-8"),
+                       col_types = cols(id = col_character(),
+  type = col_character(),
+  modified = col_datetime(format = ""),
+  ownerInstitutionCode = col_character(),
+  dynamicProperties = col_character(),
+  eventID = col_character(),
+  parentEventID = col_character(),
+  samplingProtocol = col_character(),
+  sampleSizeValue = col_double(),
+  sampleSizeUnit = col_character(),
+  eventDate = col_datetime(format = ""),
+  eventTime = col_character(),
+  eventRemarks = col_character(),
+  locationID = col_character(),
+  country = col_character(),
+  countryCode = col_character(),
+  stateProvince = col_character(),
+  municipality = col_character(),
+  locality = col_character(),
+  locationRemarks = col_character(),
+  decimalLatitude = col_double(),
+  decimalLongitude = col_double(),
+  geodeticDatum = col_character(),
+  coordinateUncertaintyInMeters = col_double(),
+  footprintWKT = col_character(),
+  footprintSRS = col_character()
+))
+```
+
+We then split the event data into section events (with parent ID), and
+transect events (without parent ID’s). If we would have more
+hierarchical levels, this would have been more convoluted.
+
+``` r
+transectEventRaw <- eventRaw %>% 
+  filter(is.na(parentEventID))
+
+sectionEventRaw <- eventRaw %>% 
+  filter(!is.na(parentEventID))
+```
+
+The occurrence data reads in easier.
+
+``` r
+occurrenceRaw <- read_delim("GBIF_data/occurrence.txt", 
+                       delim = "\t",
+                       locale = locale(encoding = "UTF-8")
+                       )
+```
+
+    ## Parsed with column specification:
+    ## cols(
+    ##   id = col_character(),
+    ##   modified = col_datetime(format = ""),
+    ##   basisOfRecord = col_character(),
+    ##   occurrenceID = col_character(),
+    ##   individualCount = col_double(),
+    ##   sex = col_logical(),
+    ##   lifeStage = col_character(),
+    ##   occurrenceStatus = col_character(),
+    ##   eventID = col_character(),
+    ##   taxonID = col_character(),
+    ##   scientificName = col_character(),
+    ##   kingdom = col_character(),
+    ##   phylum = col_character(),
+    ##   class = col_character(),
+    ##   order = col_character(),
+    ##   family = col_character(),
+    ##   genus = col_character(),
+    ##   specificEpithet = col_character(),
+    ##   vernacularName = col_character()
+    ## )
 
 # Temporary export from source database
 
@@ -102,53 +256,12 @@ nomenclature.
 
 # Extracting the data from the GBIF raw format
 
+In the GBIF data, the two event tables will be combined into one.
+
 ``` r
 transectEventRaw <- tbl(con, in_schema("views", "parent_event_flate")) 
 sectionEventRaw <- tbl(con, in_schema("views", "event_transect")) 
 occurrenceRaw <- tbl(con, in_schema("views", "occurrence")) 
-```
-
-# Temporary - store these as csv as a workaround for GBIF import
-
-``` r
-transectEventRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/parent_event_flate.csv",
-            quote = F,
-            row.names = F)
-
-sectionEventRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/event_transect.csv",
-            quote = F,
-            row.names = F)
-
-occurrenceRaw %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/occurrence.csv",
-            quote = F,
-            row.names = F)
-
-transectEventRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/parent_event_flate_100_Lines.csv",
-            quote = F,
-            row.names = F)
-
-sectionEventRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/event_transect_100_Lines.csv",
-            quote = F,
-            row.names = F)
-
-occurrenceRaw %>% 
- head(100) %>% 
-  collect() %>% 
-  write.csv("out/toGBIF/occurrence_100_Lines.csv",
-            quote = F,
-            row.names = F)
 ```
 
 ## Subset the butterflies
@@ -167,22 +280,22 @@ lepiRaw
 ```
 
     ## # A tibble: 2,736,195 x 19
-    ##    id    modified            basisOfRecord occurrenceID individualCount
-    ##    <chr> <dttm>              <chr>         <chr>                  <int>
-    ##  1 7734… 2020-06-10 11:28:40 HumanObserva… fbd9d66c-33…               0
-    ##  2 7734… 2020-04-20 11:53:51 HumanObserva… b29d723b-46…               0
-    ##  3 7734… 2020-06-05 13:22:50 HumanObserva… a75961c9-26…               0
-    ##  4 7734… 2020-04-20 11:53:51 HumanObserva… 4d2749e6-8c…               0
-    ##  5 7734… 2020-04-20 11:53:51 HumanObserva… 4eda34fa-16…               0
-    ##  6 7734… 2020-04-20 11:53:51 HumanObserva… 1a16e0a5-8d…               0
-    ##  7 7734… 2020-04-20 11:53:51 HumanObserva… 7ae5a57e-cd…               0
-    ##  8 7734… 2020-06-10 11:28:40 HumanObserva… 81d33931-bd…               0
-    ##  9 7734… 2020-06-10 11:28:40 HumanObserva… 7773db3b-25…               0
-    ## 10 7734… 2020-04-20 11:53:51 HumanObserva… 76178acd-66…               0
-    ## # … with 2,736,185 more rows, and 14 more variables: occurrenceStatus <chr>,
-    ## #   sex <chr>, lifeStage <chr>, eventID <chr>, taxonID <chr>,
-    ## #   scientificName <chr>, vernacularName <chr>, kingdom <chr>, phylum <chr>,
-    ## #   class <chr>, order <chr>, family <chr>, genus <chr>, specificEpithet <chr>
+    ##    id    modified            basisOfRecord occurrenceID individualCount sex  
+    ##    <chr> <dttm>              <chr>         <chr>                  <dbl> <lgl>
+    ##  1 c57a… 2020-06-10 11:28:40 HumanObserva… 4ce65989-d9…               0 NA   
+    ##  2 c57a… 2020-04-20 11:53:51 HumanObserva… a6383b77-d2…               0 NA   
+    ##  3 c57a… 2020-04-20 11:53:51 HumanObserva… bb9e2dec-0d…               0 NA   
+    ##  4 c57a… 2020-04-20 11:53:51 HumanObserva… e4631b50-a6…               0 NA   
+    ##  5 c31e… 2020-06-10 11:28:40 HumanObserva… 3885fb31-8a…               0 NA   
+    ##  6 c31e… 2020-06-10 11:28:40 HumanObserva… c601da8d-85…               0 NA   
+    ##  7 c31e… 2020-04-20 11:53:51 HumanObserva… 3b973f0d-be…               0 NA   
+    ##  8 c31e… 2020-06-05 13:22:50 HumanObserva… f3162934-26…               0 NA   
+    ##  9 c31e… 2020-06-10 11:28:40 HumanObserva… 7040bab4-40…               0 NA   
+    ## 10 c31e… 2020-04-20 11:53:51 HumanObserva… 08f3c86d-13…               0 NA   
+    ## # … with 2,736,185 more rows, and 13 more variables: lifeStage <chr>,
+    ## #   occurrenceStatus <chr>, eventID <chr>, taxonID <chr>, scientificName <chr>,
+    ## #   kingdom <chr>, phylum <chr>, class <chr>, order <chr>, family <chr>,
+    ## #   genus <chr>, specificEpithet <chr>, vernacularName <chr>
 
 ## Extract the data that didn’t fit into the GBIF standard
 
@@ -197,11 +310,10 @@ sectionEventRaw %>%
   head(1)
 ```
 
-    ## # Source:   lazy query [?? x 1]
-    ## # Database: postgres [jens.astrom@ninradardata01.nina.no:5432/humlesommerf]
+    ## # A tibble: 1 x 1
     ##   dynamicProperties                                                             
-    ##   <pq_json>                                                                     
-    ## 1 {"observerID" : "3347a291-889e-46b2-8c84-9c1480370eed", "habitatType" : "fore…
+    ##   <chr>                                                                         
+    ## 1 "{\"observerID\" : \"3347a291-889e-46b2-8c84-9c1480370eed\", \"habitatType\" …
 
 The following solution is a bit cumbersome but the best I’ve found so
 far. The `tidyjson` package seem to have pretty poor performance on
@@ -235,7 +347,7 @@ sectionEvent <- sectionEvent %>%
 ```
 
     ##    user  system elapsed 
-    ##  32.499   0.361  32.864
+    ##  41.849   0.424  42.273
 
 The new columns contain a habitat type classification, cloud cover in %,
 temperature, and a 4 level classification of the total flower cover for
@@ -326,16 +438,16 @@ transectEvent %>%
     ## # A tibble: 1,350 x 2
     ##    start_time          end_time           
     ##    <dttm>              <dttm>             
-    ##  1 2009-05-12 09:40:00 2009-05-12 15:30:00
-    ##  2 2009-05-13 09:45:00 2009-05-13 11:40:00
-    ##  3 2009-05-13 13:00:00 2009-05-13 16:30:00
-    ##  4 2009-05-15 09:00:00 2009-05-15 11:00:00
-    ##  5 2009-05-15 11:35:00 2009-05-15 14:45:00
-    ##  6 2009-05-15 11:10:00 2009-05-15 13:55:00
-    ##  7 2009-05-25 09:30:00 2009-05-25 14:40:00
-    ##  8 2009-05-25 15:20:00 2009-05-25 18:00:00
-    ##  9 2009-05-27 09:00:00 2009-05-27 11:10:00
-    ## 10 2009-05-27 11:50:00 2009-05-27 14:50:00
+    ##  1 2013-05-18 11:06:00 2013-05-18 11:46:00
+    ##  2 2013-05-28 10:45:00 2013-05-28 14:45:00
+    ##  3 2013-05-24 11:53:00 2013-05-24 12:46:00
+    ##  4 2013-06-08 10:50:00 2013-06-08 12:31:00
+    ##  5 2013-06-04 12:00:00 2013-06-04 15:51:00
+    ##  6 2013-06-07 11:00:00 2013-06-07 15:20:00
+    ##  7 2013-06-08 13:05:00 2013-06-08 14:11:00
+    ##  8 2013-06-06 12:05:00 2013-06-06 13:45:00
+    ##  9 2013-06-06 10:00:00 2013-06-06 12:00:00
+    ## 10 2013-06-06 14:00:00 2013-06-06 16:30:00
     ## # … with 1,340 more rows
 
 ## Join the tables
@@ -391,24 +503,7 @@ lepiCountTab <- occTrans %>%
          count = individualCount
          ) %>% 
   arrange(visit_ID, transect_ID, section_ID, date, species_name)
-
-lepiCountTab
 ```
-
-    ## # A tibble: 2,426,474 x 6
-    ##    visit_ID       transect_ID      section_ID     date       species_name  count
-    ##    <chr>          <chr>            <chr>          <date>     <chr>         <int>
-    ##  1 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Adscita stat…     0
-    ##  2 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aglais io         0
-    ##  3 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aglais urtic…     0
-    ##  4 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Agriades aqu…     0
-    ##  5 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Agriades opt…     0
-    ##  6 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Agriades orb…     0
-    ##  7 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Anthocharis …     0
-    ##  8 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aphantopus h…     0
-    ##  9 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Aporia crata…     0
-    ## 10 00161ef1-3471… 20cb4183-0697-4… 04901d87-489c… 2011-06-30 Argynnis pap…     0
-    ## # … with 2,426,464 more rows
 
 We need to alter some species names to fit the BMS nomenclature. It
 turned out to be only one species names that was slightly different.
@@ -534,6 +629,27 @@ lepiCountTab <- lepiCountTab %>%
   mutate(species_name = ifelse(species_name == 'Colias croceus', 'Colias crocea', species_name))
 ```
 
+The butterfly count table is now ready.
+
+``` r
+lepiCountTab
+```
+
+    ## # A tibble: 2,426,474 x 6
+    ##    visit_ID    transect_ID   section_ID   date                species_name count
+    ##    <chr>       <chr>         <chr>        <dttm>              <chr>        <dbl>
+    ##  1 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Adscita sta…     0
+    ##  2 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Aglais io        0
+    ##  3 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Aglais urti…     0
+    ##  4 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Agriades aq…     0
+    ##  5 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Agriades op…     0
+    ##  6 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Agriades or…     0
+    ##  7 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Anthocharis…     0
+    ##  8 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Aphantopus …     0
+    ##  9 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Aporia crat…     0
+    ## 10 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Argynnis pa…     0
+    ## # … with 2,426,464 more rows
+
 ## Arrange monitoring visit table
 
 Here we summarize the characteristics for the individual transect walks.
@@ -578,20 +694,20 @@ monVisTabSection
 ```
 
     ## # A tibble: 23,558 x 11
-    ##    visit_ID recorder_id transect_ID section date       start_time end_time
-    ##    <chr>    <chr>       <chr>       <chr>   <date>     <chr>      <chr>   
-    ##  1 e5b7974… 2f0ccd4f-a… d53aef1f-7… dfb927… 2013-05-26 11:20:00   11:25:00
-    ##  2 6c70518… 2f0ccd4f-a… d53aef1f-7… dfb927… 2013-07-23 11:45:00   11:56:00
-    ##  3 6c81a4a… 2f0ccd4f-a… d53aef1f-7… dfb927… 2014-06-01 17:36:00   17:42:00
-    ##  4 cac20b4… 2f0ccd4f-a… d53aef1f-7… dfb927… 2014-07-12 14:50:00   15:02:00
-    ##  5 cdb2134… 2f0ccd4f-a… d53aef1f-7… dfb927… 2014-08-27 12:10:00   12:15:00
-    ##  6 30792c0… 2f0ccd4f-a… d53aef1f-7… dfb927… 2015-07-04 12:00:00   12:05:00
-    ##  7 4f44d6d… 2f0ccd4f-a… d53aef1f-7… dfb927… 2015-08-13 14:30:00   14:36:00
-    ##  8 2689da3… 2f0ccd4f-a… d53aef1f-7… dfb927… 2016-05-27 15:55:00   15:57:00
-    ##  9 d413064… 2f0ccd4f-a… d53aef1f-7… dfb927… 2016-07-20 15:09:00   15:15:00
-    ## 10 3f292a1… 2f0ccd4f-a… d53aef1f-7… dfb927… 2017-06-27 15:37:00   15:41:00
-    ## # … with 23,548 more rows, and 4 more variables: temperature <dbl>,
-    ## #   cloud <dbl>, wind <lgl>, completed <dbl>
+    ##    visit_ID recorder_id transect_ID section date                start_time
+    ##    <chr>    <chr>       <chr>       <chr>   <dttm>              <chr>     
+    ##  1 facd2b5… 6a478010-e… 2287ad7a-0… 15c2e7… 2011-05-29 00:00:00 13:38:00  
+    ##  2 ca07bcc… 6a478010-e… 2287ad7a-0… 15c2e7… 2011-07-16 00:00:00 16:25:00  
+    ##  3 5c2e6d8… 6a478010-e… 2287ad7a-0… 15c2e7… 2011-08-20 00:00:00 16:05:00  
+    ##  4 a7d7a6e… 6a478010-e… 2287ad7a-0… 15c2e7… 2012-05-23 00:00:00 16:10:00  
+    ##  5 9d03032… 6a478010-e… 2287ad7a-0… 15c2e7… 2012-07-14 00:00:00 14:45:00  
+    ##  6 6392e5f… 6a478010-e… 2287ad7a-0… 15c2e7… 2012-09-07 00:00:00 15:15:00  
+    ##  7 d8aa3d0… 6a478010-e… 2287ad7a-0… 15c2e7… 2013-06-20 00:00:00 17:06:00  
+    ##  8 9a48474… 6a478010-e… 2287ad7a-0… 15c2e7… 2013-07-23 00:00:00 16:12:00  
+    ##  9 be8d871… 6a478010-e… 2287ad7a-0… 15c2e7… 2013-08-13 00:00:00 14:51:00  
+    ## 10 e12e945… 6a478010-e… 2287ad7a-0… 15c2e7… 2014-05-25 00:00:00 13:36:00  
+    ## # … with 23,548 more rows, and 5 more variables: end_time <chr>,
+    ## #   temperature <dbl>, cloud <dbl>, wind <lgl>, completed <dbl>
 
 The the corresponding operation on the transect level (survey square).
 We first select the columns of interest.
@@ -639,20 +755,20 @@ monVisTabTransect
 ```
 
     ## # A tibble: 1,199 x 10
-    ##    visit_ID recorder_id transect_ID date       start_time end_time temperature
-    ##    <chr>    <chr>       <chr>       <date>     <chr>      <chr>          <dbl>
-    ##  1 00161ef… 9b98f4cf-9… 20cb4183-0… 2011-06-30 14:55:00   16:14:00        24  
-    ##  2 004d789… 76839443-4… cce42c93-e… 2013-07-20 12:15:00   13:20:00        22  
-    ##  3 005b7cf… fc6b9ecf-7… e0a3c18a-3… 2016-06-09 13:00:00   17:30:00        20.8
-    ##  4 008d7ab… a939d930-1… e3756fff-2… 2011-08-03 13:10:00   14:30:00        24  
-    ##  5 009cf41… 6a478010-e… 911293b2-2… 2014-05-22 12:30:00   14:30:00        25  
-    ##  6 00ef24d… 99c120bf-8… 7bb92922-4… 2014-07-10 14:54:00   16:38:00        27  
-    ##  7 018d499… c2f4a043-e… ccf55543-4… 2015-06-12 11:00:00   14:11:00        17  
-    ##  8 01a6668… a6495896-d… df94d08e-b… 2018-05-18 15:30:00   17:11:00        19.5
-    ##  9 01ce94c… ef323094-1… 5e85d80f-f… 2016-08-05 13:26:00   14:40:00        19  
-    ## 10 0207a1e… 6a478010-e… 2287ad7a-0… 2014-08-02 13:30:00   16:01:00        25  
-    ## # … with 1,189 more rows, and 3 more variables: cloud <dbl>, wind <dbl>,
-    ## #   completed <dbl>
+    ##    visit_ID recorder_id transect_ID date                start_time end_time
+    ##    <chr>    <chr>       <chr>       <dttm>              <chr>      <chr>   
+    ##  1 00161ef… 9b98f4cf-9… 20cb4183-0… 2011-06-30 00:00:00 14:55:00   16:14:00
+    ##  2 004d789… 76839443-4… cce42c93-e… 2013-07-20 00:00:00 12:15:00   13:20:00
+    ##  3 005b7cf… fc6b9ecf-7… e0a3c18a-3… 2016-06-09 00:00:00 13:00:00   17:30:00
+    ##  4 008d7ab… a939d930-1… e3756fff-2… 2011-08-03 00:00:00 13:10:00   14:30:00
+    ##  5 009cf41… 6a478010-e… 911293b2-2… 2014-05-22 00:00:00 12:30:00   14:30:00
+    ##  6 00ef24d… 99c120bf-8… 7bb92922-4… 2014-07-10 00:00:00 14:54:00   16:38:00
+    ##  7 018d499… c2f4a043-e… ccf55543-4… 2015-06-12 00:00:00 11:00:00   14:11:00
+    ##  8 01a6668… a6495896-d… df94d08e-b… 2018-05-18 00:00:00 15:30:00   17:11:00
+    ##  9 01ce94c… ef323094-1… 5e85d80f-f… 2016-08-05 00:00:00 13:26:00   14:40:00
+    ## 10 0207a1e… 6a478010-e… 2287ad7a-0… 2014-08-02 00:00:00 13:30:00   16:01:00
+    ## # … with 1,189 more rows, and 4 more variables: temperature <dbl>, cloud <dbl>,
+    ## #   wind <dbl>, completed <dbl>
 
 ## Arrange the site geographical information table
 
@@ -666,12 +782,12 @@ siteGeoInfo <- occTrans %>%
          section = locationID.section,
          decimalLatitude.section,
          decimalLongitude.section,
-         footprintwkt.section) %>% 
+         footprintWKT.section) %>% 
   distinct()
 
 ##Register the geometry as SF object
 siteGeoInfoSF <- siteGeoInfo %>% 
-  st_as_sf(wkt = "footprintwkt.section",
+  st_as_sf(wkt = "footprintWKT.section",
           crs = 4326) 
 #%>% 
  # st_transform(crs = 25833)
@@ -725,7 +841,7 @@ points <- points %>%
   mutate(which = rep(c("start", "end"), nrow(.)/2)) %>% 
   group_by(section, which) %>%
   mutate(row = row_number()) %>% 
-  pivot_wider(values_from = footprintwkt.section,
+  pivot_wider(values_from = footprintWKT.section,
               names_from = which) %>% 
   select(-row)
 
@@ -755,24 +871,24 @@ tempSection
 ```
 
     ## Simple feature collection with 1831 features and 2 fields
-    ## Active geometry column: footprintwkt.section
+    ## Active geometry column: footprintWKT.section
     ## geometry type:  LINESTRING
     ## dimension:      XY
     ## bbox:           xmin: 5.221364 ymin: 58.0589 xmax: 13.18196 ymax: 64.9271
     ## geographic CRS: WGS 84
     ## # A tibble: 1,831 x 6
-    ##    transect_ID section      footprintwkt.section                     start
+    ##    transect_ID section      footprintWKT.section                     start
     ##    <chr>       <chr>            <LINESTRING [°]>               <POINT [°]>
-    ##  1 d53aef1f-7… dfb927… (5.221583 59.39742, 5.22…       (5.221583 59.39742)
-    ##  2 d53aef1f-7… efc706… (5.221583 59.39742, 5.22…       (5.221583 59.39742)
-    ##  3 d53aef1f-7… fff25b… (5.221911 59.39699, 5.22…       (5.221911 59.39699)
-    ##  4 d53aef1f-7… 316c21… (5.223379 59.39645, 5.22…       (5.223379 59.39645)
-    ##  5 d53aef1f-7… e07338… (5.224109 59.39617, 5.22…       (5.224109 59.39617)
-    ##  6 d53aef1f-7… 34a6ae… (5.224726 59.39583, 5.22…       (5.224726 59.39583)
-    ##  7 d53aef1f-7… 17696e… (5.225234 59.39545, 5.22…       (5.225234 59.39545)
-    ##  8 d53aef1f-7… cc8b58… (5.225234 59.39545, 5.22…       (5.225234 59.39545)
-    ##  9 d53aef1f-7… b191a5… (5.226234 59.39467, 5.22…       (5.226234 59.39467)
-    ## 10 d53aef1f-7… 0628de… (5.226706 59.39428, 5.22…       (5.226706 59.39428)
+    ##  1 2287ad7a-0… 15c2e7… (10.95253 59.36785, 10.9…       (10.95253 59.36785)
+    ##  2 2287ad7a-0… 840562… (10.95212 59.36882, 10.9…       (10.95212 59.36882)
+    ##  3 553685f8-0… ee199d… (10.12944 62.90943, 10.1…       (10.12944 62.90943)
+    ##  4 303753c0-e… 5a9b1c… (10.0312 59.01691, 10.03…        (10.0312 59.01691)
+    ##  5 303753c0-e… 7f5dce… (10.03208 59.01696, 10.0…       (10.03208 59.01696)
+    ##  6 303753c0-e… 68f4d7… (10.03297 59.01698, 10.0…       (10.03297 59.01698)
+    ##  7 303753c0-e… 85148d… (10.03385 59.01703, 10.0…       (10.03385 59.01703)
+    ##  8 553685f8-0… c87088… (10.13028 62.90968, 10.1…       (10.13028 62.90968)
+    ##  9 553685f8-0… 435506… (10.13113 62.90993, 10.1…       (10.13113 62.90993)
+    ## 10 553685f8-0… 1a0530… (10.10346 62.89997, 10.1…       (10.10346 62.89997)
     ## # … with 1,821 more rows, and 2 more variables: end <POINT [°]>,
     ## #   geometry <POINT>
 
@@ -842,16 +958,16 @@ siteGeoInfoTab
     ## # A tibble: 1,831 x 10
     ##    transect_ID section_ID lon_start_point lat_start_point lon_end_point
     ##    <chr>       <chr>                <dbl>           <dbl>         <dbl>
-    ##  1 d53aef1f-7… dfb9272e-…            5.22            59.4          5.22
-    ##  2 d53aef1f-7… efc706a7-…            5.22            59.4          5.22
-    ##  3 d53aef1f-7… fff25b5b-…            5.22            59.4          5.22
-    ##  4 d53aef1f-7… 316c2185-…            5.22            59.4          5.22
-    ##  5 d53aef1f-7… e0733813-…            5.22            59.4          5.22
-    ##  6 d53aef1f-7… 34a6aebd-…            5.22            59.4          5.22
-    ##  7 d53aef1f-7… 17696e5a-…            5.23            59.4          5.22
-    ##  8 d53aef1f-7… cc8b5806-…            5.23            59.4          5.23
-    ##  9 d53aef1f-7… b191a51d-…            5.23            59.4          5.23
-    ## 10 d53aef1f-7… 0628debb-…            5.23            59.4          5.23
+    ##  1 2287ad7a-0… 15c2e737-…            11.0            59.4          11.0
+    ##  2 2287ad7a-0… 8405622a-…            11.0            59.4          11.0
+    ##  3 553685f8-0… ee199d4c-…            10.1            62.9          10.1
+    ##  4 303753c0-e… 5a9b1c68-…            10.0            59.0          10.0
+    ##  5 303753c0-e… 7f5dce12-…            10.0            59.0          10.0
+    ##  6 303753c0-e… 68f4d708-…            10.0            59.0          10.0
+    ##  7 303753c0-e… 85148d68-…            10.0            59.0          10.0
+    ##  8 553685f8-0… c870881b-…            10.1            62.9          10.1
+    ##  9 553685f8-0… 435506ac-…            10.1            62.9          10.1
+    ## 10 553685f8-0… 1a0530bf-…            10.1            62.9          10.1
     ## # … with 1,821 more rows, and 5 more variables: lat_end_point <dbl>,
     ## #   lon_centroid <dbl>, lat_centroid <dbl>, SRID_for_all_coordinates <dbl>,
     ## #   monitoring_type <dbl>
@@ -882,7 +998,24 @@ habTypeTab <- occTrans %>%
          habitat_Type = habitatType
 ) %>% 
   distinct()
+
+habTypeTab
 ```
+
+    ## # A tibble: 1,810 x 3
+    ##    transect_ID                      section_ID                      habitat_Type
+    ##    <chr>                            <chr>                           <chr>       
+    ##  1 2287ad7a-008e-433e-92ee-db69cab… 15c2e737-ce42-4d07-9baa-d95ba3… forest      
+    ##  2 2287ad7a-008e-433e-92ee-db69cab… 8405622a-2a61-4f46-a933-864e5a… forest      
+    ##  3 553685f8-0303-4f49-bcbb-9f6ca5d… ee199d4c-f1a1-4180-a4f3-b02180… grassland   
+    ##  4 303753c0-e2c6-4fdd-8a7a-b74f625… 5a9b1c68-699c-4995-8526-0c9652… grassland   
+    ##  5 303753c0-e2c6-4fdd-8a7a-b74f625… 7f5dce12-e549-4459-bf34-c15af3… grassland   
+    ##  6 303753c0-e2c6-4fdd-8a7a-b74f625… 68f4d708-ee23-4ac9-995c-d98657… grassland   
+    ##  7 303753c0-e2c6-4fdd-8a7a-b74f625… 85148d68-5fb1-4923-a796-5df968… grassland   
+    ##  8 553685f8-0303-4f49-bcbb-9f6ca5d… c870881b-124e-49f3-8f5c-74a578… grassland   
+    ##  9 553685f8-0303-4f49-bcbb-9f6ca5d… 435506ac-d60f-4e20-bc42-dc956e… grassland   
+    ## 10 553685f8-0303-4f49-bcbb-9f6ca5d… 1a0530bf-ab57-480a-ba49-408598… grassland   
+    ## # … with 1,800 more rows
 
 ## Arrange the species name table
 
@@ -903,18 +1036,18 @@ speciesNameTab
 ```
 
     ## # A tibble: 103 x 3
-    ##    national_species_latin fauna_europea_species_latin local_species_norwegian   
-    ##    <chr>                  <chr>                       <chr>                     
-    ##  1 Erebia disa            Erebia disa                 Disas Ringvinge           
-    ##  2 Polyommatus icarus     Polyommatus icarus          Tiriltungeblåvinge        
-    ##  3 Fabriciana adippe      Fabriciana adippe           Adippeperlemorvinge       
-    ##  4 Satyrium w-album       Satyrium w-album            Almestjertvinge           
-    ##  5 Pieris napi            Pieris napi                 Rapssommerfugl            
-    ##  6 Leptidea sinapis/reali Leptidea sinapis/reali      Skoghvitvinge/Enghvitvinge
-    ##  7 Boloria selene         Boloria selene              Brunflekket Perlemorvinge 
-    ##  8 Erebia polaris         Erebia polaris              Polarringvinge            
-    ##  9 Boloria eunomia        Boloria eunomia             Ringperlemorvinge         
-    ## 10 Boloria aquilonaris    Boloria aquilonaris         Myrperlemorvinge          
+    ##    national_species_latin   fauna_europea_species_latin local_species_norwegian
+    ##    <chr>                    <chr>                       <chr>                  
+    ##  1 Zygaena viciae           Zygaena viciae              Liten BloddrÃ¥pesvermer
+    ##  2 Erebia disa              Erebia disa                 Disas Ringvinge        
+    ##  3 Lasiommata petropolitana Lasiommata petropolitana    Bergringvinge          
+    ##  4 Fabriciana adippe        Fabriciana adippe           Adippeperlemorvinge    
+    ##  5 Boloria improba          Boloria improba             Dvergperlemorvinge     
+    ##  6 Satyrium w-album         Satyrium w-album            Almestjertvinge        
+    ##  7 Nymphalis antiopa        Nymphalis antiopa           SÃ¸rgekÃ¥pe            
+    ##  8 Pieris brassicae         Pieris brassicae            Stor KÃ¥lsommerfugl    
+    ##  9 Melitaea diamina         Melitaea diamina            MÃ¸rk Rutevinge        
+    ## 10 Callophrys rubi          Callophrys rubi             GrÃ¸nnstjertvinge      
     ## # … with 93 more rows
 
 # Export the BMS data into CSV-files
@@ -948,8 +1081,8 @@ Since we include count data for all species for all surveys, the count
 table contains a huge amount of zeroes. This results in a file that is
 too large to store on github.
 
-However, it is possible to exlude the rows with zeroe individuals and
-recreate them in R afterwards. To do that, we can store all unique
+However, it is possible to exlude the rows with zero individuals and
+recreate these in R afterwards. To do that, we can store all unique
 surveys, and the records with non zero counts.
 
 ``` r
@@ -966,7 +1099,7 @@ lepiCountTabNoZeroes  <- lepiCountTab %>%
 
 Instead of storing 2.4 million rows, we are suddenly down to 23.5
 thousand individual surveys, and a little over 9 thousand non zero
-observation, with no loss of information. We can store this in their own
+observation, with no loss of information. We store this in separate
 csv-files. We already have all species names stored in the species
 table.
 
@@ -993,7 +1126,7 @@ uniqueVisits <- read_csv("out/uniqueVisits.csv")
     ##   visit_ID = col_character(),
     ##   transect_ID = col_character(),
     ##   section_ID = col_character(),
-    ##   date = col_date(format = "")
+    ##   date = col_datetime(format = "")
     ## )
 
 ``` r
@@ -1005,7 +1138,7 @@ lepiCountTabNoZeroes <- read_csv("out/ButterflyCountDataTableNoZeroes.csv")
     ##   visit_ID = col_character(),
     ##   transect_ID = col_character(),
     ##   section_ID = col_character(),
-    ##   date = col_date(format = ""),
+    ##   date = col_datetime(format = ""),
     ##   species_name = col_character(),
     ##   count = col_double()
     ## )
