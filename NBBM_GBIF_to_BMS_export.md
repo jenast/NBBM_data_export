@@ -2,56 +2,20 @@ Data export from the Norwegian Bumblebee and Butterfly Monitoring
 program
 ================
 Jens Åström
-11 June, 2020
+22 June, 2020
+
+**With data formatting for the European Butterfly Monitoring
+Scheme**
 
 ``` r
 #We also load tidyverse, which doesn't format well in markdown. Not shown.
 require(DBI)
-```
-
-    ## Loading required package: DBI
-
-``` r
 require(RPostgres)
-```
-
-    ## Loading required package: RPostgres
-
-``` r
 require(sf)
-```
-
-    ## Loading required package: sf
-
-    ## Linking to GEOS 3.8.0, GDAL 3.0.4, PROJ 7.0.0
-
-``` r
 require(maps)
-```
-
-    ## Loading required package: maps
-
-    ## 
-    ## Attaching package: 'maps'
-
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     map
-
-``` r
 require(tidyjson)
+require(xml2)
 ```
-
-    ## Loading required package: tidyjson
-
-    ## 
-    ## Attaching package: 'tidyjson'
-
-    ## The following object is masked from 'package:stats':
-    ## 
-    ##     filter
-
-**With data formatting for the European Butterfly Monitoring Scheme**
 
 # Introduction
 
@@ -94,25 +58,55 @@ within the same table, instead of normalizing the data across several
 tables. The downside is that you need to keep track of the eventID’s and
 the parentEventID’s to recreate the original data structure.
 
-# Fetching the data from GBIF
+# Finding the raw data and how to cite it
 
-Here we show how to get the source data from GBIF.
+The dataset can be found at <http://gbif.org> by searching for
+“Bumblebees and butterflies in Norway”. This will take you to the
+webpage of the dataset:
+<https://www.gbif.org/dataset/aea17af8-5578-4b04-b5d3-7adf0c5a1e60> Here
+you can access the meta-data of the dataset. This data is freely
+available, but please cite the source. The citation is visible at the
+dataset’s webpage at GBIF. The citation can be fetched programmatically
+this
+way.
 
 ``` r
-datasetID <- "4f829580-180d-46a9-9c87-ed8ec959b545"
+datasetID <- "aea17af8-5578-4b04-b5d3-7adf0c5a1e60" ##From the webpage URL
+# Suggested citation: Take the citation as from downloaded from GBIF website, replace "via GBIF.org" by endpoint url. 
+tmp <- tempfile()
+download.file(paste0("http://api.gbif.org/v1/dataset/",datasetID,"/document"),tmp) # get medatadata from gbif api
+meta <- read_xml(tmp) %>% as_list() # create list from xml schema
+gbif_citation <- meta$eml$additionalMetadata$metadata$gbif$citation[[1]] # extract citation
+```
+
+The citation to use is then:
+
+  - Åström S, Åström J (2020). Bumblebees and butterflies in Norway.
+    Norwegian Institute for Nature Research. Sampling event dataset
+    <https://doi.org/10.15468/mpsa4g> accessed via GBIF.org on
+    2020-06-22.
+
+# Fetching the raw-data from GBIF
+
+We need an “endpoint\_url” to retrieve the actual data set. This is
+found at the bottom of the webpage for the dataset. This can also be
+found programatically as shown
+here.
+
+``` r
 datasetURL <-  paste0("http://api.gbif.org/v1/dataset/",datasetID,"/endpoint")
-dataset <- RJSONIO::fromJSON()
+dataset <- RJSONIO::fromJSON(datasetURL)
 endpoint_url <- dataset[[1]]$url # extracting URL from API call result
 ```
 
-The endpoint for our dataset looks like this: \*
-<http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020>
+The endpoint for our dataset looks like this: (Also visible on the
+webpage for the dataset)
 
-With the endpoint, we can download the data in a zipped
-format.
+  - <https://ipt.nina.no/archive.do?r=butterflies_bumblebees2020>
+
+With the endpoint, we can download the data in a zipped format.
 
 ``` r
-endpoint_url <- "http://data.nina.no:8080/ipt/archive.do?r=butterflies_bumblebees2020"
 # Download from dwc-a from IPT  putting into data folder
 download.file(endpoint_url, destfile="GBIF_data/gbif_download.zip", mode="wb")
 ```
@@ -124,31 +118,11 @@ unzip("GBIF_data/gbif_download.zip",
       exdir = "GBIF_data")
 ```
 
-# Citation and meta-data
-
-This data is freely available, but please cite the source. The citation
-can be fetched programmatically this
-way.
-
-``` r
-# Suggested citation: Take the citation as from downloaded from GBIF website, replace "via GBIF.org" by endpoint url. 
-tmp <- tempfile()
-download.file(paste0("http://api.gbif.org/v1/dataset/",datasetID,"/document"),tmp) # get medatadata from gbif api
-meta <- read_xml(tmp) %>% as_list() # create list from xml schema
-gbif_citation <- meta$eml$additionalMetadata$metadata$gbif$citation[[1]] # extract citation
-citation <- gsub("GBIF.org", paste(endpoint_url), gbif_citation) # replace "gbif.org" with endpoint url
-```
-
-``` r
-citation <- "to_come"
-```
-
-The citation to use is then: - to\_come
-
 ## Read in the raw GBIF files
 
-Read\_delim parses some columns incorrectly, probably since the file
-starts with lots of null values. We here specify the data types
+The data is a simple tab delimited text filw. I use `read_delim` here,
+which unfortunately parses some columns incorrectly, probably since the
+file starts with lots of null values. So here we specify the data types
 manually.
 
 ``` r
@@ -184,18 +158,6 @@ eventRaw <- read_delim("GBIF_data/event.txt",
 ))
 ```
 
-We then split the event data into section events (with parent ID), and
-transect events (without parent ID’s). If we would have more
-hierarchical levels, this would have been more convoluted.
-
-``` r
-transectEventRaw <- eventRaw %>% 
-  filter(is.na(parentEventID))
-
-sectionEventRaw <- eventRaw %>% 
-  filter(!is.na(parentEventID))
-```
-
 The occurrence data reads in easier.
 
 ``` r
@@ -228,23 +190,6 @@ occurrenceRaw <- read_delim("GBIF_data/occurrence.txt",
     ##   vernacularName = col_character()
     ## )
 
-# Temporary export from source database
-
-Until the GBIF/IPT source is set up, we can get the data directly from
-the source database. Note that this is not publicly available.
-
-The data is exported through three (materialized) views in the database.
-Here events (transect visits) and parent events (survey square visits)
-are accessed through separate views.
-
-``` r
-con <- dbConnect(Postgres(),
-                 host = "ninradardata01.nina.no", 
-                 dbname = "humlesommerf", 
-                 user = username, 
-                 password = password)
-```
-
 ## A note on terminology
 
 The terminology of the BMS differ from the original dataset in an
@@ -256,12 +201,17 @@ nomenclature.
 
 # Extracting the data from the GBIF raw format
 
-In the GBIF data, the two event tables will be combined into one.
+We have to split the event data into section events (with parent ID),
+and transect events (without parent ID’s). This is because GBIF combines
+all hierarchical events into one table. If we would have more
+hierarchical levels, this would have been more convoluted.
 
 ``` r
-transectEventRaw <- tbl(con, in_schema("views", "parent_event_flate")) 
-sectionEventRaw <- tbl(con, in_schema("views", "event_transect")) 
-occurrenceRaw <- tbl(con, in_schema("views", "occurrence")) 
+transectEventRaw <- eventRaw %>% 
+  filter(is.na(parentEventID))
+
+sectionEventRaw <- eventRaw %>% 
+  filter(!is.na(parentEventID))
 ```
 
 ## Subset the butterflies
@@ -347,11 +297,11 @@ sectionEvent <- sectionEvent %>%
 ```
 
     ##    user  system elapsed 
-    ##  41.849   0.424  42.273
+    ##  38.256   0.471  38.729
 
 The new columns contain a habitat type classification, cloud cover in %,
 temperature, and a 4 level classification of the total flower cover for
-each transect. A sample of the extacted data:
+each transect. A sample of the extracted data:
 
 ``` r
 sectionEvent %>% 
@@ -486,7 +436,7 @@ occTrans <- occTrans %>%
   filter(eventDate.section < '2019-01-01')
 ```
 
-## Arrange the butterfly count data table.
+## Arrange a butterfly count data table.
 
 Here we want the species names, amount of individuals, and enough
 identifying information to link these to the transect walks.
@@ -650,7 +600,7 @@ lepiCountTab
     ## 10 00161ef1-3… 20cb4183-069… 04901d87-48… 2011-06-30 00:00:00 Argynnis pa…     0
     ## # … with 2,426,464 more rows
 
-## Arrange monitoring visit table
+## Arrange a monitoring visit table
 
 Here we summarize the characteristics for the individual transect walks.
 
@@ -709,7 +659,7 @@ monVisTabSection
     ## # … with 23,548 more rows, and 5 more variables: end_time <chr>,
     ## #   temperature <dbl>, cloud <dbl>, wind <lgl>, completed <dbl>
 
-The the corresponding operation on the transect level (survey square).
+Then the corresponding operation on the transect level (survey square).
 We first select the columns of interest.
 
 ``` r
@@ -770,7 +720,7 @@ monVisTabTransect
     ## # … with 1,189 more rows, and 4 more variables: temperature <dbl>, cloud <dbl>,
     ## #   wind <dbl>, completed <dbl>
 
-## Arrange the site geographical information table
+## Arrange a site geographical information table
 
 This output table contains the geographical information for the
 individual survey sections, i.e. the starting points, ending points, and
@@ -972,7 +922,7 @@ siteGeoInfoTab
     ## #   lon_centroid <dbl>, lat_centroid <dbl>, SRID_for_all_coordinates <dbl>,
     ## #   monitoring_type <dbl>
 
-## Arrange the habitat type table
+## Arrange a habitat type table
 
 This contains information on the habitat types for each section. BMS
 asks for the habitat type for both sides of a transect. In the national
@@ -1017,7 +967,7 @@ habTypeTab
     ## 10 553685f8-0303-4f49-bcbb-9f6ca5d… 1a0530bf-ab57-480a-ba49-408598… grassland   
     ## # … with 1,800 more rows
 
-## Arrange the species name table
+## Arrange a species name table
 
 The only discrepancy between the locally used latin names and tha Fauna
 Europea latin names is “Colias Croceus”/“Colias crocea”. Note that some
