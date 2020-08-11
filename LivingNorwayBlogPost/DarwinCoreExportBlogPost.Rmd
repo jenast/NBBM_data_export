@@ -1,7 +1,7 @@
 ---
 title: "Exporting complex ecological data into GBIF"
 description: |
-  An example of storing species survey data using the DarwinCore standard.
+  To GBIF and back again, using the Event core standard.
 author:
   - name: Jens Åström 
     url: https://github.com/jenast
@@ -21,66 +21,72 @@ require(jsonlite)
 Where should I put my ecological data set?
 =========
 
-Making your data publicly available is quickly becoming a standard task for researchers. It is increasingly demanded by journals when publishing your research findings, or even by funding agencies when applying for grants. Journals have traditionally accepted data in file format, which can be reached through their websites along with the paper in question. But these data have idiosyncratic formats, and are typically stripped down to a minimal set suited for a specific analysis in the paper. In addition, the data can be hard to find and cumbersome to download, since it is stored (or should I say hidden) behind paywalls on various publishers' websites.
+Making your data publicly available is quickly becoming a standard task for researchers. It is increasingly demanded by journals when publishing your research findings, or even by funding agencies when applying for grants. Journals have traditionally accepted data in file format, which can be reached through their websites along with the paper. But these data have idiosyncratic formats and are typically stripped down to a minimal set suited for a specific analysis in the paper. In addition, the data can be hard to find and cumbersome to download, since it is stored (or should I say hidden) behind paywalls on various publishers' websites.
 
-Wouldn't it be nice if we could store our ecological data in a common place, in a common format, that is freely available for everyone?
+Wouldn't it be nice if we could store our ecological data using a common format, in a common place, freely available for everyone?
 
-GBIF could be your solution. Granted, it might not work for all sorts of biological data, but odds are that it works for more cases than you would think. I would argue it works for most observational datasets of organisms. 
+GBIF could be your solution. It doesn't work for every sort of biological data, but it probably works for more cases than you would think. 
 
 -But my data have a complex structure with repeated measurements and zero-counts that GFIB just can't accept, you might say. 
 
-Well let's see about that. The new(ish) Event Core of the Darwin core standard might help you out. Below is the story of how I formatted and published a multi-year observation data set of ~80 species with a hierarchical survey scheme, while incorporating all collected environmental covariates, and meta-data into GBIF.
+Well let's see about that. With the new(ish) "Event Core" of the Darwin core standard, odds are that GBIF works for your data as well. Below is the story of how I formatted and published a multi-year observation data set of ~80 species with a hierarchical survey scheme, while incorporating all collected environmental covariates, and meta-data into GBIF.
 
 
 The Event Core standard
 ============
-This is not meant as a comprehensive guide to the Darwin Core format. See here for the Darwin core in general: <https://www.gbif.org/darwin-core> and for event-data specifically, see here: <https://www.gbif.org/data-quality-requirements-sampling-events>.
-
 GBIF — the Global Biodiversity Information Facility, is a vast store of biodiversity data, with records spanning hundreds of years, and containing hundreds of millions of occcurrence records. Up until recently though, it has been limited to presence-only data, neglecting information of possible zero-counts. The addition of Events to the Darwin Core standard seeks to remedy that. With this addition, GBIF now accepts most survey data. It does this by organizing the data around individual sample events, i.e. a distinct measurement event of one or more species together with related records, in a specific time and place.
+
+See here for info on the Darwin core in general: <https://www.gbif.org/darwin-core>. For event-data specifically, see here: <https://www.gbif.org/data-quality-requirements-sampling-events>.
 
 From a custom sample structure to a standardized hierarchy of events
 ------------------------
-Most of our complex data has a structure to it, whether it is spelled out clearly through naming schemes, or implicit through  relationships within a database. A botanist for example might have mapped the flora of a forest stand, by placing a 1$m^2$ survey square randomly 10 times, and recording the percentage cover of each species in the survey squares. The individual observations of the plants are then linked together to a specific 1$m^2$ survey square, and further linked together through the 10 survey squares to the same forest stand. This structure could later be recorded in a single table by using a column for the names of the forest stand, a column for the survey square a column for the plant species and a column of the percentage cover of the species. Or, the data could be split up into separate tables in a database, with keys that link the tables together. Alas, there are (almost) as many such structures as there are surveys. But there is only one Darwin Event Core. The task is then to standardise individual data sets, so that it fits into GBIF, while providing the necessary information so that the original format can later be retrieved. It's a little bit like zipping and unzipping a file.
+Most of our complex data has a structure to it, whether it is spelled out clearly through naming schemes, or implicit through  relationships within a database. A botanist for example, might have mapped the flora of a forest stand by placing 1$m^2$ survey squares randomly 10 times, and recorded the percentage cover of each species in the squares. The individual observations of the plants are then linked together through the specific 1$m^2$ survey square they were found in, and further linked together through the 10 survey squares in the same forest stand. This could be recorded in a single table by using a column for the names of the forest stand, a column for the survey square a column for the plant species and a column of the percentage cover of the species (Table 1). Or, the data could be split up into separate tables in a database, with keys that link the tables together. Alas, there are (almost) as many potential structures as there are surveys. But there is only one Darwin Event Core. The task is then to standardise individual data sets so that it fits into GBIF, while providing the necessary information so that the original format can later be retrieved. It's a little bit like zipping and unzipping a file.
 
-The key idea behind the event core format is to link related information in a data set together using a hierarchy of events. The lowest level *event* in this example, is the counting of plants within one survey square. That's the smallest observational unit that links individual records together. Each such event has a number of *occurrence* records linked to it, in this example the percentage cover of each plant in that survey square. This can include 0%, of species that we looked for, but didn't find in any particular survey square. The hierarchical structure of the data is recorded, by encoding the higher level above the observation event as a *parent event*. In this case this is the survey of the entire forest stand. This hierarchy is open-ended, meaning there could be additional higher level events. Thus a parent event can have it's own parent event, and so on.
+The key idea behind the event core format is to link related information in a data set together using a hierarchy of recording events. The lowest level **event** in our example is the counting of plants within one survey square. That's the smallest observational unit that links individual records together. Each such event has a number of **occurrence** records linked to it, in this example the percentage cover of each plant in that survey square. This can include values of 0%, for species that we looked for, but didn't find in any particular survey square. We can also include zero counts the same way. The hierarchical structure of the survey scheme is recorded by encoding the higher recording level, above the observation event as a **parent event**. In our case this is the survey of the entire forest stand. This hierarchy is open-ended, meaning there could be additional higher level events. Thus a parent event can have it's own parent event, and so on. 
 
-The point of coding the hierarchical relationships this way is to be able to store any (?) structure and related recorded data in a standardised way in only one event table and one occurrence table. This obviously has some major benefits. We could store a wide range of biodiversity data in a unified way at a single location, facilitating the combination of data sources and streamlining data gathering routines.
+The point of coding the hierarchical relationships this way is to be able to store any (?) structure and related recorded data in a standardised way, in only one event table and one occurrence table. This obviously has some major benefits. We could store a wide range of biodiversity data in a unified way at a single location, facilitating the combination of data sources and streamlining data gathering routines.
 
-But nothing so great comes for free. This can seem confusing at the start, and along the way, you might wonder if it's really worth it. But there is no way around it. There is inherently work involved in organizing complex data into a unified format, and getting it back again. But you already knew that didn't you? 
+But nothing so great comes for free, and the cost here is that you might need to rearrange your data before you upload it to GBIF. This particular formatting can seem confusing at first, and along the way you might wonder if it's really worth it. But there is no way around it. There is inherently work involved in organizing complex data into a unified format and getting it back again. But once it's done, your data is securely stored and publicly available, free of charge, in the worlds largest repository of biodiversity information. 
 
 
-Let's look at our made up example data:
+A simple example
+----------------
+Let's look at our made up example data of plant surveys in forests.
 
 ```{r}
 set.seed(1234)
-exampleData <- tibble("date" = rep("2019-04-01", 6),
-                      "forest" = rep("Sherwood", 6),
-                      "plot" = rep(paste0("plot_", 1:2), each = 3),
-                      "pH" = rep(round(runif(n = 2, min = 6, max = 8), 2), each = 3),
-                      "species" = rep(c("Quercus robur", "Anemone nemorosa", "Athyrium filix-femina"), 2),
-                      "percCover" = round(runif(n = 6, min = 0, max = 40), 2))
+exampleData <- tibble("date" = rep(c("2019-04-01", "2019-04-15"), each =  6),
+                      "observer" = rep(c("Mary", "John"), each = 6),
+                      "forest" = rep(c("Sherwood", "Nottingham"), each = 6),
+                      "plot" = rep(rep(paste0("plot_", 1:2), each = 3), 2),
+                      "pH" = rep(round(runif(n = 4, min = 6, max = 8), 2), each = 3),
+                      "species" = rep(c("Quercus robur", "Anemone nemorosa", "Athyrium filix-femina"), 4),
+                      "percCover" = round(runif(n = 12, min = 0, max = 40), 2))
 
 
 ```
 
 ```{r}
-kable(exampleData, caption = "Made up simple example data.")
+kable(exampleData, 
+      caption = "Made up simple example data.")
 ```
 
 Using the Event Core format, this could be transformed into something like these two tables, which GBIF can swallow.
 
 ```{r}
-exampleEvent <- tibble("eventDate" = exampleData$date[1],
-                      "eventID" = c("parentEvent_1", "event_1", "event_2"),
-                      "parentEventID" = c(NA, "parentEvent_1", "parentEvent_1"),
-                      "locationID" = c("Sherwood", "plot_1", "plot_2"),
-                      "dynamicProperties" = c(NA, paste0("{\"pH\" : ", c( unique(exampleData$pH)), "}"))
+pH <- paste0("{\"pH\" : ", c( unique(exampleData$pH)), "}")
+
+exampleEvent <- tibble("eventDate" = rep(unique(exampleData$date), each = 3),
+                      "eventID" = c("parentEvent_1", "event_1", "event_2", "parentEvent_2", "event_3", "event_4"),
+                      "parentEventID" = c(NA, "parentEvent_1", "parentEvent_1", NA, "parentEvent_2", "parentEvent_2"),
+                      "locationID" = c("Sherwood", "plot_1", "plot_2", "Nottingham", "plot_1", "plot_2"),
+                      "dynamicProperties" = c("{\"Mary\"}", pH[1:2],"{\"John\"}" , pH[3:4])
                       )
 
 
 ```
 ```{r}
-exampleOcc <- tibble("eventID" = rep(c("event_1", "event_2"), each = 3),
+exampleOcc <- tibble("eventID" = rep(paste0("event_", 1:4), each = 3),
                      "scientificName" = exampleData$species,
                      "organismQuantity" = exampleData$percCover,
                      "organismQuantityType" = "percentageCover")
@@ -96,7 +102,7 @@ kable(exampleEvent, caption = "Minimal example of Event table for made up data."
 kable(exampleOcc, caption = "Minimal example of Occurrence table for made up data.")
 ```
 
-Notice that the survey square (event) is tied to the forest survey through the parentEventID column in the event table. Additional environmental data (here pH) is stored in a column named "dynamicProperties", which is formated as JSON. The result is perhaps less readable for a human, but the structure is generalizable to a lot of situations.
+Notice that the individual survey squares are tied to a common forest survey through the parentEventID column in the event table. Additional environmental data (here pH and observer) is stored in a column named "dynamicProperties", which is formated as JSON, and can hold any collection of such extra information. The result is perhaps less readable for a human, but the structure is generalizable to a lot of situations.
 
 
 
@@ -104,9 +110,9 @@ Butterfly and bumblebee example
 ==============
 I will now show how we formatted a real world data set for publication on GBIF through the Event Core standard. The data comes from a yearly survey of butterfly and bumblebees at approximately 60 fixed locations in Norway. We employ citizen scientists to record the abundances of butterflies and bumblebees along 20 50 meter long pre-defined transects at each survey location. Each location is visited 3 times each year, and rudimentary environmental data is recorded at each transect, each visit. We train each surveyor to be able to identify all occurring species, and thus record non observed species as zero counts. 
 
-Here, each survey of the individual 50 meter transects form the lowest level observation event. Within each of these transect walks, each species can be observed 0 or more times. The 20 transects are clustered together within a larger survey square of 1.5x1.5 kilometers and together survey the bumblebee and butterfly communities at these locations. We therefore can format the data into one table of *occurrences*, and one table of events, including the transect visits as *events* and the survey square visits as *parentEvents*. 
+Here, each transect walk along the individual 50 meter transects form the lowest level observation event. Within each of these transect walks, each species can be observed 0 or more times. The 20 transects are clustered together within a larger survey square of 1.5x1.5 kilometers and together characterize the bumblebee and butterfly communities at these locations. We therefore can format the data into one table of **occurrences**, and one table of events, including the transect walks as the lowest level **events** and the survey square visits as **parentEvents**. 
 
-In the toy example above, we used readable id's for the sampling units (Sherwood, plot_1, etc.) for pedagogical reasons, but it is good practice to use unique identifiers whenever possible in your real data. Thus in our example, every event, parent event, and location is replaced with a UUID, which is stable throughout time. In our case, we might relocate transect nr 5 in a survey location due to practical reasons. This then gets a new unique identifier, making it possible to distinguish the new and old locations.
+In the toy example above, we used readable id's for the sampling units (Sherwood, plot_1, etc.) for pedagogical reasons, but it is good practice to use unique identifiers whenever possible in your real data. Thus in our example, every event, parent event, and location is replaced with a UUID, which is stable throughout time. In our case, we might relocate transect nr 5 in a survey location due to practical reasons, but keep the name of "transect 5". But this transect then gets a new unique identifier, making it possible to distinguish the new and old locations.
  
 
 ```{r}
@@ -189,12 +195,12 @@ subsetEventComb <- subsetParentEvent %>%
 
 The event table
 ----------
-This is how two rows of our event table looks like, showing one parent event (survey square visit) and one of it's children events (transect walks).
+This is how two rows of our entire event table looks like as a tibble, showing one parent event (survey square visit) and one of it's children events (transect walks). 
 
 ```{r}
 subsetEventComb
 ```
-The format corresponds to the GBIF Event core format, which requires some explaining. The first 5 columns records the record id, the type of record the latest time the data was modified, the owner of the data and additional "dynamic properties". The dynamic properties contain various data that is tied to the observation event, that doesn't have their own predefined GBIF column. For our data set, this includes the person who recorded the observation, the local habitat type, cloud cover, temperature, and the local flower cover. This is concatenated into a JSON-string, in order for the GBIF database to be able to accept various formats:
+The first 5 columns records the record id, the type of record, the latest time the data was modified, the owner of the data and additional "dynamic properties". Like in the toy example above, the dynamic properties contain various data that is tied to the observation event, that doesn't have their own predefined GBIF columns. For our data set, this includes the person who recorded the observation, the local habitat type, cloud cover, temperature, and the local flower cover. This is concatenated into a JSON-string, in order for the GBIF database to be able to accept various formats. In our data, we don't have any dynamic properties (extra information that GBIF lacks columns for) that are tied to the parent event (larger survey square level). It is for example possible to have two observers sharing a survey square by dividing up the transects withing it (although uncommon). I imagine one could replicate any dynamic properties of the parent event down to the child events if one would like, but that would result in unecessary data size, and less clarity of the hierarchical nature of the data. This is what our whole string of dynamic properties looks like:
 
 ```{r}
 subsetEventComb %>% 
@@ -236,7 +242,7 @@ subsetEventComb %>%
 
 The occurrence table
 --------
-Now for the actual occurrence data. These are linked to the event table through the eventID column.
+Now for the actual occurrence data, shown again as the two first rows of a tibble. 
 
 ```{r}
 subsetOccurrenceRaw <- occurrenceRaw %>% 
@@ -254,20 +260,37 @@ subsetOccurrenceRaw %>%
   select(1:4) %>% 
   kable
 ```
-The next 5 include information of the individual count, sex of the individual (which we don't record), life stage, occurrence status (present/absent), and the eventID. Note that the eventID corresponds to event table.
+The next 5 include information of the individual count, sex of the individual (which we don't record), life stage, occurrence status (present/absent), and the eventID, which links the data back to the event table.
 
 ```{r}
 subsetOccurrenceRaw %>% 
   select(5:9) %>% 
   kable
 ```
-The next colums include taxonomic information, with the possibility to include a URL for the species and a local vernacular name. Not all columns are shown. Pictures of the species is available at the URL by clicking "Les mer om taksonet".
+The next colums include taxonomic information, with the possibility to include a URL for the species and a local vernacular name. Not all columns are shown. If you are interested, pictures of the species is available at the URL by clicking "Les mer om taksonet".
 
 ```{r}
 subsetOccurrenceRaw %>% 
   select(10:14, 19) %>% 
   kable
 ```
+
+Uploading and downloading data
+===========
+So that's it in a nutshell for the formatting of the data. We have managed to encode all our recorded data in a quite complex survey scheme, including zero counts, into GBIF. The next step is to provide the relevant metadata, and upload the data to the GBIF. Note that GBIF only accepts data through their partner organisations, so you will have to find your nearest GBIF affiliate and send it through there. These organizations typically push data to GBIF through a specific tool called an IPT. Our organisation for example hosts its own IPT. For more information on publishing, see <https://www.gbif.org/publishing-data>, where you can also find excel templates for event core data.
+
+The data set that were featured here is available at <https://www.gbif.org/dataset/aea17af8-5578-4b04-b5d3-7adf0c5a1e60>.
+
+And back again?
+---------------
+Once the data is stored on GBIF, it can be downloaded through their standard tools. Recreating the original structure of course also requires some work, and it is adviced that you publish a recipe specific to your data, that you can refer users to. Such a recipe for our example data is available at <https://github.com/jenast/NBBM_data_export/blob/master/NBBM_GBIF_to_BMS_export.md> 
+
+A last word of advice
+-------------
+At the moment, there doesn't exist much prepackaged tools that help with the formatting of these type of data, so it will most likely be a custom job for your case. Of course, if you plan on submitting your data to GBIF in this way, the earlier you set up your data structure to harmonize with GBIF, the easier it will be. That could be e.g. storing event ID's and parent event ID's along with your readable survey and location codes. At some point, you will probably have to merge an event table together with one or more parent event tables, as you are unlikely to store this together from the outset. The key thing is to keep track of the event and parent event ID's so that they codify the dependence structure of the data set. Hopefully there will be some custom tools for this type of work developed in the future, for example as an R-package. 
+
+For our data set, we already had the data in a PostgreSQL database. After inserting some additional data that GBIF required and sorting out some relationships in the database, it was a matter of setting up views that formatted the data into the GBIF event core format. Once that was done, we set up permissions so that the IPT machine could access these export views directly, to streamline the publishing pipeline. Future additions to the data should then go smoothly.
+
 
 
 
