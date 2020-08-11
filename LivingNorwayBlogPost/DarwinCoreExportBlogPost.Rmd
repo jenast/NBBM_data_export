@@ -71,6 +71,10 @@ kable(exampleData,
       caption = "Made up simple example data.")
 ```
 
+```{r layout="l-body", fig.cap = "Rare footage of early botanists."}
+knitr::include_graphics("images/rh.jpg")
+```
+
 Using the Event Core format, this could be transformed into something like these two tables, which GBIF can swallow.
 
 ```{r}
@@ -106,11 +110,18 @@ Notice that the individual survey squares are tied to a common forest survey thr
 
 
 
+
 Butterfly and bumblebee example
 ==============
 I will now show how we formatted a real world data set for publication on GBIF through the Event Core standard. The data comes from a yearly survey of butterfly and bumblebees at approximately 60 fixed locations in Norway. We employ citizen scientists to record the abundances of butterflies and bumblebees along 20 50 meter long pre-defined transects at each survey location. Each location is visited 3 times each year, and rudimentary environmental data is recorded at each transect, each visit. We train each surveyor to be able to identify all occurring species, and thus record non observed species as zero counts. 
 
+```{r layout="l-body", fig.cap = "One of the survey squares with its 20 transects á 50m"}
+knitr::include_graphics("images/801.png")
+```
+
+
 Here, each transect walk along the individual 50 meter transects form the lowest level observation event. Within each of these transect walks, each species can be observed 0 or more times. The 20 transects are clustered together within a larger survey square of 1.5x1.5 kilometers and together characterize the bumblebee and butterfly communities at these locations. We therefore can format the data into one table of **occurrences**, and one table of events, including the transect walks as the lowest level **events** and the survey square visits as **parentEvents**. 
+
 
 In the toy example above, we used readable id's for the sampling units (Sherwood, plot_1, etc.) for pedagogical reasons, but it is good practice to use unique identifiers whenever possible in your real data. Thus in our example, every event, parent event, and location is replaced with a UUID, which is stable throughout time. In our case, we might relocate transect nr 5 in a survey location due to practical reasons, but keep the name of "transect 5". But this transect then gets a new unique identifier, making it possible to distinguish the new and old locations.
  
@@ -209,6 +220,10 @@ subsetEventComb %>%
   kable()
 ```
 
+```{r layout="l-body", fig.cap = "Pollinator survey along a transect. Photo: Sondre Dahle."}
+knitr::include_graphics("images/DSCN8574.jpg")
+```
+
 Next we have the eventIDs, parentEventIDs, sampling protocol, sample size and sample size unit. Note that the eventID for the parent event (the survey of the whole 1.5x1.5km square) is recorded in the parentID column for the respective "child-events", i.e. the individual transect walks. Notice also that the sampleSizeValue records the full sample size at that level, where twenty 50 meter long transects combine to make one 1000 m long parent event.
 
 ```{r}
@@ -260,6 +275,11 @@ subsetOccurrenceRaw %>%
   select(1:4) %>% 
   kable
 ```
+
+```{r layout="l-body", fig.cap = "Bombus hortorum on a Trifolium repens."}
+knitr::include_graphics("images/hortorum_trifolium_cut.JPG")
+```
+
 The next 5 include information of the individual count, sex of the individual (which we don't record), life stage, occurrence status (present/absent), and the eventID, which links the data back to the event table.
 
 ```{r}
@@ -273,6 +293,10 @@ The next colums include taxonomic information, with the possibility to include a
 subsetOccurrenceRaw %>% 
   select(10:14, 19) %>% 
   kable
+```
+
+```{r layout="l-body", fig.cap = "Bombus consobrinus approaching an Aconitum lycoctonum."}
+knitr::include_graphics("images/consobrinus.jpg")
 ```
 
 Uploading and downloading data
