@@ -6,6 +6,7 @@ output:
   rmarkdown::github_document
 ---
 **With data formatting for the European Butterfly Monitoring Scheme**
+**Verified to work with the 2021 published version of the data (exporting data from 2009 - 2020 to BMS format)** 
 
 
 ```{r, include = F}
@@ -106,7 +107,7 @@ unzip("GBIF_data/gbif_download.zip",
 
 Read in the raw GBIF files
 --------
-The data is a simple tab delimited text filw. I use `read_delim` here, which unfortunately parses some columns incorrectly, probably since the file starts with lots of null values. So here we specify the data types manually.
+The data is a simple tab delimited text file. I use `read_delim` here, which unfortunately parses some columns incorrectly, probably since the file starts with lots of null values. So here we specify the data types manually.
 
 ```{r}
 eventRaw <- read_delim("GBIF_data/event.txt", 
@@ -298,10 +299,12 @@ The following section only pertains to the BMS format, but could be used as an e
 
 Subset the data according to time
 --------------
-At this moment, the BMS only wants data up until including 2018, so we'll subset the joined table, here performed on the event dates. 
+~~At this moment, the BMS only wants data up until including 2018, so we'll subset the joined table, here performed on the event dates.~~
+This time around, the BMS wants all data including 2020.
+
 ```{r}
 occTrans <- occTrans %>% 
-  filter(eventDate.section < '2019-01-01')
+  filter(eventDate.section < '2021-01-01')
 ```
 
 
