@@ -6,6 +6,7 @@ output:
   rmarkdown::github_document
 ---
 **With data formatting for the European Butterfly Monitoring Scheme**
+
 **Verified to work with the 2021 published version of the data (exporting data from 2009 - 2020 to BMS format)** 
 
 
