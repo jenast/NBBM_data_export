@@ -5,6 +5,7 @@ Jens Åström
 08 July, 2021
 
 **With data formatting for the European Butterfly Monitoring Scheme**
+
 **Verified to work with the 2021 published version of the data
 (exporting data from 2009 - 2020 to BMS format)**
 
@@ -297,7 +298,7 @@ sectionEvent <- sectionEvent %>%
 ```
 
     ##    user  system elapsed 
-    ##  19.033   0.185  19.218
+    ##  18.940   0.189  19.129
 
 The new columns contain a habitat type classification, cloud cover in %,
 temperature, and a 4 level classification of the total flower cover for
