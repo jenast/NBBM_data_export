@@ -7,7 +7,7 @@ output:
 ---
 **With data formatting for the European Butterfly Monitoring Scheme**
 
-**Verified to work with the 2021 published version of the data (exporting data from 2009 - 2020 to BMS format)** 
+**Verified to work with the 2023 published version of the data (exporting data from 2009 - 2022 to the eBMS format). But eBMS only request data including 2021, so we filter out the 2022 data.** 
 
 
 ```{r, include = F}
@@ -96,6 +96,7 @@ The endpoint for our dataset looks like this: (Also visible on the webpage for t
 With the endpoint, we can download the data in a zipped format.
 ```{r, eval = T}
 # Download from dwc-a from IPT  putting into data folder
+system("mkdir -p GBIF_data")
 download.file(endpoint_url, destfile="GBIF_data/gbif_download.zip", mode="wb")
 
 ```
@@ -194,18 +195,10 @@ sectionEventRaw %>%
   head(1)
 ```
 
-The following solution is a bit cumbersome but the best I've found so far. The `tidyjson` package seem to have pretty poor performance on large datasets. I had a go at using `purrr::map` and `rjson::fromJSON` but I don't seem to get this to work at the moment (although it did work at some point).
 
-```{r, echo = F, eval = F}
-##Doesn't work anymore, not sure why. Have to use tidyjson instead.
-sectionEvent<- sectionEventRaw %>% 
-  collect()  %>% 
-  mutate(dyn = map(dynamicProperties, fromJSON)) %>% 
-  unnest_wider(col = dyn)
 
-```
+Here, we split out the json string (dynamicProperties) into a separate table, and join it back to the original data afterwards. This takes about 30 seconds on a pretty fast machine. I tried various json-packages earlier with varying success, but this works and should be stable.
 
-Here, we split out the json string (dynamicProperties) into a separate table, and join it back to the original data afterwards. This takes about 30 seconds on a pretty fast machine.
 ```{r}
 system.time({
 sectionEvent <- sectionEventRaw %>% 
@@ -300,12 +293,11 @@ The following section only pertains to the BMS format, but could be used as an e
 
 Subset the data according to time
 --------------
-~~At this moment, the BMS only wants data up until including 2018, so we'll subset the joined table, here performed on the event dates.~~
-This time around, the BMS wants all data including 2020.
+This time around, the BMS wants all data including 2021.
 
 ```{r}
 occTrans <- occTrans %>% 
-  filter(eventDate.section < '2021-01-01')
+  filter(eventDate.section < '2022-01-01')
 ```
 
 
@@ -440,7 +432,7 @@ siteGeoInfoSF <- siteGeoInfo %>%
  # st_transform(crs = 25833)
 ```
 
-We can plot the locatons of the transects on a simple map for a simple quality check. We can at least see that the transects lie within Norway, which rules out transformation and projection errors.
+We can plot the locations of the transects on a simple map for a simple quality check. We can at least see that the transects lie within Norway, which rules out transformation and projection errors.
 ```{r transect_loc, fig.cap = "Transect locations of the Norwegian bumblebee and butterfly monitoring"}
 world1 <- sf::st_as_sf(map('world', plot = FALSE, fill = TRUE))
 norway <- world1 %>% filter(ID == "Norway") 
@@ -457,12 +449,29 @@ plot(siteGeoInfoSF["transect_ID"],
      add = T)
 ```
 
-We now extract the start and end points from the linestring that represents the section. It seems you have to jump through some hoops to get the start and end points from a linestring in `sf`. When we extract the end points from the linestrings, these are first stored in separate rows instead of columns, and we have to spread them into separate columns manually.
+We now extract the start and end points from the linestring that represents the section. The eBMS just want the start and endpoints, so the meandering of transects isn't captured. It seems you have to jump through some hoops to get the start and end points from a linestring in `sf`. When we extract the end points from the linestrings, these are first stored in separate rows instead of columns, and we have to spread them into separate columns manually.
+
+!! use this instead to get end points
+If you only want the endpoints, then st_line_sample is what you are looking for:
+
+ptns = st_line_sample(ls, sample = 1)
+
+Also get the centroid at this stage.
 
 ```{r}
+# points <- siteGeoInfoSF %>% 
+#   st_transform(crs = 25833) %>% 
+#   st_cast("POINT",
+#           ) %>% 
+#   st_transform(4326) %>% 
+#   select(section) %>% 
+#   as_tibble()
+
 points <- siteGeoInfoSF %>% 
   st_transform(crs = 25833) %>% 
-  st_cast("POINT",
+  mutate(points = st_line_sample(footprintWKT.section, sample = c(0, 1))) %>% 
+  st_set_geometry("points") %>% 
+     st_cast("POINT",
           ) %>% 
   st_transform(4326) %>% 
   select(section) %>% 
@@ -473,7 +482,7 @@ points <- points %>%
   mutate(which = rep(c("start", "end"), nrow(.)/2)) %>% 
   group_by(section, which) %>%
   mutate(row = row_number()) %>% 
-  pivot_wider(values_from = footprintWKT.section,
+  pivot_wider(values_from = points,
               names_from = which) %>% 
   select(-row)
 
@@ -619,11 +628,11 @@ write_csv(speciesNameTab,
 ```
 
 
-Extract zeroes to avoid large sample size
+Impute zero counts
 --------------
-Since we include count data for all species for all surveys, the count table contains a huge amount of zeroes. This results in a file that is too large to store on github.
+As of the GBIF data export in 2023 (dataset version 1.5), we don't include zeroes (absences) in our dataset. These can be imputed by filling in zeroes of all the on recorded species.
 
-However, it is possible to exlude the rows with zero individuals and recreate these in R afterwards. To do that, we can store all unique surveys, and the records with non zero counts. 
+We can reuse the existing method for this, when we had zeroes in the dataset.
 
 ```{r}
 uniqueVisits <- lepiCountTab %>% 
@@ -633,6 +642,7 @@ uniqueVisits <- lepiCountTab %>%
          date) %>% 
   distinct()
 
+#superfluous in the current version
 lepiCountTabNoZeroes  <- lepiCountTab %>% 
   filter(count > 0)
 
@@ -663,8 +673,7 @@ We then expand all combinations of species and survey times.
 ```{r}
 zeroesToJoin <- speciesNameTab %>% 
   select(species_name = national_species_latin) %>% 
-  left_join(uniqueVisits,
-            by = character())
+  cross_join(uniqueVisits)
 ```
 
 And join these to the records with non-zero counts.
@@ -680,13 +689,6 @@ lepiCountTabRecreatedZeroes <- zeroesToJoin %>%
          species_name,
          count) %>% 
     arrange(visit_ID, transect_ID, section_ID, date, species_name)
-
-```
-
-We can check that the recreated data matches the original. 
-
-```{r}
-all(lepiCountTab == lepiCountTabRecreatedZeroes)
 
 ```
 
