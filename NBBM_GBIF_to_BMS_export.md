@@ -2,13 +2,19 @@ Data export from the Norwegian Bumblebee and Butterfly Monitoring
 program
 ================
 Jens Åström
-12 June, 2023
+10 November, 2024
 
 **With data formatting for the European Butterfly Monitoring Scheme**
 
-**Verified to work with the 2023 published version of the data
-(exporting data from 2009 - 2022 to the eBMS format). But eBMS only
-request data including 2021, so we filter out the 2022 data.**
+**Verified to work with the 2024 published version of the data
+(exporting data from 2009 - 2023 to the eBMS format). Note that there
+seems to be a discrepancy with the earlier data version in GBIF, where
+we now have fewer occurrence records exported to GBIF. I’ve checked and
+the number of lepidoptera records match the earlier data version. The
+bumblebee records doesn’t display any obvious errors either. The source
+of the discrepancy remains to be found. It could have something to do
+with changes in how we report zero occurrences. In any case, the
+lepidoptera data should conform to the earlier exports.**
 
 ``` r
 #We also load tidyverse, which doesn't format well in markdown. Not shown.
@@ -83,10 +89,10 @@ gbif_citation <- meta$eml$additionalMetadata$metadata$gbif$citation[[1]] # extra
 
 The citation to use is then:
 
-- Åström S, Åström J (2023). Bumblebees and butterflies in Norway.
-  Version 1.5. Norwegian Institute for Nature Research. Sampling event
+- Åström S, Åström J (2024). Bumblebees and butterflies in Norway.
+  Version 1.8. Norwegian Institute for Nature Research. Sampling event
   dataset <https://doi.org/10.15468/mpsa4g> accessed via GBIF.org on
-  2023-06-12.
+  2024-11-10.
 
 # Fetching the raw-data from GBIF
 
@@ -132,7 +138,7 @@ eventRaw <- read_delim("GBIF_data/event.txt",
                        delim = "\t",
                        locale = locale(encoding = "UTF-8"),
                        col_types = cols(id = col_character(),
-  type = col_character(),
+ # type = col_character(), #doesn't contain column 'type' anymore
   modified = col_datetime(format = ""),
   ownerInstitutionCode = col_character(),
   dynamicProperties = col_character(),
@@ -169,7 +175,7 @@ occurrenceRaw <- read_delim("GBIF_data/occurrence.txt",
                        )
 ```
 
-    ## Rows: 33767 Columns: 19
+    ## Rows: 37562 Columns: 19
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: "\t"
     ## chr  (16): id, basisOfRecord, occurrenceID, lifeStage, occurrenceStatus, eve...
@@ -219,24 +225,24 @@ lepiRaw <- occurrenceRaw %>%
 lepiRaw
 ```
 
-    ## # A tibble: 15,620 × 19
-    ##    id          modified            basis…¹ occur…² indiv…³ sex   lifeS…⁴ occur…⁵
-    ##    <chr>       <dttm>              <chr>   <chr>     <dbl> <lgl> <chr>   <chr>  
-    ##  1 d9f05488-5… 2023-06-07 14:06:40 HumanO… d4d105…       1 NA    Adult   present
-    ##  2 868a1db2-0… 2023-06-07 14:06:40 HumanO… 72afc9…       1 NA    Adult   present
-    ##  3 4581bbc3-8… 2023-06-07 14:06:40 HumanO… 5033c2…       1 NA    Adult   present
-    ##  4 d9a5d096-5… 2023-06-07 14:06:40 HumanO… 93e029…       1 NA    Adult   present
-    ##  5 cfdbcf58-7… 2023-06-07 14:06:40 HumanO… 79b11b…       1 NA    Adult   present
-    ##  6 bc1167c6-9… 2023-06-07 14:06:40 HumanO… a76a96…       5 NA    Adult   present
-    ##  7 265b35be-0… 2023-06-07 14:06:40 HumanO… 6c42b4…       1 NA    Adult   present
-    ##  8 24152952-3… 2023-06-07 14:06:40 HumanO… 2737c1…       1 NA    Adult   present
-    ##  9 2cbdf3ff-5… 2023-06-07 14:06:40 HumanO… 9738b3…       3 NA    Adult   present
-    ## 10 2cbdf3ff-5… 2023-06-07 14:06:40 HumanO… 8d29e8…       1 NA    Adult   present
-    ## # … with 15,610 more rows, 11 more variables: eventID <chr>, taxonID <chr>,
-    ## #   scientificName <chr>, kingdom <chr>, phylum <chr>, class <chr>,
-    ## #   order <chr>, family <chr>, genus <chr>, specificEpithet <chr>,
-    ## #   vernacularName <chr>, and abbreviated variable names ¹​basisOfRecord,
-    ## #   ²​occurrenceID, ³​individualCount, ⁴​lifeStage, ⁵​occurrenceStatus
+    ## # A tibble: 17,257 × 19
+    ##    id       modified            basisOfRecord occurrenceID individualCount sex  
+    ##    <chr>    <dttm>              <chr>         <chr>                  <dbl> <lgl>
+    ##  1 d9f0548… 2023-06-07 14:06:40 HumanObserva… d4d10543-60…               1 NA   
+    ##  2 868a1db… 2023-06-07 14:06:40 HumanObserva… 72afc997-69…               1 NA   
+    ##  3 4581bbc… 2023-06-07 14:06:40 HumanObserva… 5033c232-4a…               1 NA   
+    ##  4 d9a5d09… 2023-06-07 14:06:40 HumanObserva… 93e02916-83…               1 NA   
+    ##  5 cfdbcf5… 2023-06-07 14:06:40 HumanObserva… 79b11b52-8a…               1 NA   
+    ##  6 bc1167c… 2023-06-07 14:06:40 HumanObserva… a76a96f0-25…               5 NA   
+    ##  7 265b35b… 2023-06-07 14:06:40 HumanObserva… 6c42b4ba-c0…               1 NA   
+    ##  8 2415295… 2023-06-07 14:06:40 HumanObserva… 2737c159-d3…               1 NA   
+    ##  9 2cbdf3f… 2023-06-07 14:06:40 HumanObserva… 9738b3c6-bb…               3 NA   
+    ## 10 2cbdf3f… 2023-06-07 14:06:40 HumanObserva… 8d29e885-08…               1 NA   
+    ## # ℹ 17,247 more rows
+    ## # ℹ 13 more variables: lifeStage <chr>, occurrenceStatus <chr>, eventID <chr>,
+    ## #   taxonID <chr>, scientificName <chr>, kingdom <chr>, phylum <chr>,
+    ## #   class <chr>, order <chr>, family <chr>, genus <chr>, specificEpithet <chr>,
+    ## #   vernacularName <chr>
 
 ## Extract the data that didn’t fit into the GBIF standard
 
@@ -283,7 +289,7 @@ sectionEvent <- sectionEvent %>%
 ```
 
     ##    user  system elapsed 
-    ##  21.614   4.316  18.591
+    ##  22.510   4.838  19.632
 
 The new columns contain a habitat type classification, cloud cover in %,
 temperature, and a 4 level classification of the total flower cover for
@@ -300,15 +306,14 @@ sectionEvent %>%
 ```
 
     ## # A tibble: 6 × 5
-    ##   observerID                           habitatType `cloudCover%` tempe…¹ flowe…²
-    ##   <chr>                                <chr>               <dbl>   <dbl>   <dbl>
-    ## 1 f35304ca-96ed-434f-9a3b-8b9ccf804127 forest                 50    17.5       1
-    ## 2 9b98f4cf-9e65-41ea-8601-3461032583e9 forest                 10    18         1
-    ## 3 ef323094-1f26-48d2-8e97-fe3a305b981c grassland               0    27         1
-    ## 4 a6495896-d41b-4998-93c1-5fd85b35d1f1 forest                 30    20         1
-    ## 5 e67031d2-1c93-44d3-b597-c47242aab90b grassland               0    23         3
-    ## 6 ef323094-1f26-48d2-8e97-fe3a305b981c forest                 40    21         1
-    ## # … with abbreviated variable names ¹​temperatureCelsius, ²​flowerCover0123
+    ##   observerID        habitatType `cloudCover%` temperatureCelsius flowerCover0123
+    ##   <chr>             <chr>               <dbl>              <dbl>           <dbl>
+    ## 1 f35304ca-96ed-43… forest                 50               17.5               1
+    ## 2 9b98f4cf-9e65-41… forest                 10               18                 1
+    ## 3 ef323094-1f26-48… grassland               0               27                 1
+    ## 4 a6495896-d41b-49… forest                 30               20                 1
+    ## 5 e67031d2-1c93-44… grassland               0               23                 3
+    ## 6 ef323094-1f26-48… forest                 40               21                 1
 
 ## Split the event times into start and end times
 
@@ -335,7 +340,7 @@ sectionEvent %>%
          end_time)
 ```
 
-    ## # A tibble: 36,974 × 2
+    ## # A tibble: 41,193 × 2
     ##    start_time          end_time           
     ##    <dttm>              <dttm>             
     ##  1 2016-06-28 15:12:00 2016-06-28 15:18:00
@@ -346,9 +351,9 @@ sectionEvent %>%
     ##  6 2012-07-27 14:54:00 2012-07-27 14:59:00
     ##  7 2017-08-13 13:40:00 2017-08-13 13:42:00
     ##  8 NA                  NA                 
-    ##  9 2018-06-24 15:35:00 2018-06-24 15:43:00
-    ## 10 NA                  NA                 
-    ## # … with 36,964 more rows
+    ##  9 NA                  NA                 
+    ## 10 2018-06-24 15:35:00 2018-06-24 15:43:00
+    ## # ℹ 41,183 more rows
 
 We split the times for the parent events the same way (“transects” in
 BMS lingo). Surveying an entire “transect” of 1000m can take anywhere
@@ -372,7 +377,7 @@ transectEvent %>%
          end_time)
 ```
 
-    ## # A tibble: 1,873 × 2
+    ## # A tibble: 2,084 × 2
     ##    start_time          end_time           
     ##    <dttm>              <dttm>             
     ##  1 2011-06-30 14:55:00 2011-06-30 16:14:00
@@ -384,8 +389,8 @@ transectEvent %>%
     ##  7 2021-06-02 14:30:00 2021-06-02 15:12:00
     ##  8 2014-07-10 14:54:00 2014-07-10 16:38:00
     ##  9 2019-06-29 13:30:00 2019-06-29 14:30:00
-    ## 10 2015-06-12 11:00:00 2015-06-12 14:11:00
-    ## # … with 1,863 more rows
+    ## 10 NA                  NA                 
+    ## # ℹ 2,074 more rows
 
 ## Join the tables
 
@@ -415,11 +420,11 @@ as an example for other uses, where you want to normalize the data
 
 ## Subset the data according to time
 
-This time around, the BMS wants all data including 2021.
+This time around, the BMS wants all data including 2023.
 
 ``` r
 occTrans <- occTrans %>% 
-  filter(eventDate.section < '2022-01-01')
+  filter(eventDate.section < '2024-01-01')
 ```
 
 ## Arrange a butterfly count data table.
@@ -453,7 +458,7 @@ lepiCountTab %>%
   print(n = Inf)
 ```
 
-    ## # A tibble: 60 × 1
+    ## # A tibble: 61 × 1
     ##    species_name             
     ##    <chr>                    
     ##  1 Aglais io                
@@ -510,12 +515,13 @@ lepiCountTab %>%
     ## 52 Pontia edusa             
     ## 53 Pyrgus malvae            
     ## 54 Satyrium w-album         
-    ## 55 Speyeria aglaja          
-    ## 56 Thymelicus lineola       
-    ## 57 Vanessa atalanta         
-    ## 58 Vanessa cardui           
-    ## 59 Zygaena exulans          
-    ## 60 Zygaena filipendulae
+    ## 55 Scolitantides orion      
+    ## 56 Speyeria aglaja          
+    ## 57 Thymelicus lineola       
+    ## 58 Vanessa atalanta         
+    ## 59 Vanessa cardui           
+    ## 60 Zygaena exulans          
+    ## 61 Zygaena filipendulae
 
 ``` r
 lepiCountTab <- lepiCountTab %>% 
@@ -528,21 +534,20 @@ The butterfly count table is now ready.
 lepiCountTab
 ```
 
-    ## # A tibble: 13,859 × 6
-    ##    visit_ID                    trans…¹ secti…² date                speci…³ count
-    ##    <chr>                       <chr>   <chr>   <dttm>              <chr>   <dbl>
-    ##  1 00161ef1-3471-4aba-9b0d-b6… 20cb41… 154dfc… 2011-06-30 00:00:00 Lasiom…     1
-    ##  2 00161ef1-3471-4aba-9b0d-b6… 20cb41… 4921b3… 2011-06-30 00:00:00 Lasiom…     1
-    ##  3 00161ef1-3471-4aba-9b0d-b6… 20cb41… 8def04… 2011-06-30 00:00:00 Agriad…     1
-    ##  4 00161ef1-3471-4aba-9b0d-b6… 20cb41… 8def04… 2011-06-30 00:00:00 Argynn…     1
-    ##  5 00161ef1-3471-4aba-9b0d-b6… 20cb41… 8def04… 2011-06-30 00:00:00 Lasiom…     1
-    ##  6 00161ef1-3471-4aba-9b0d-b6… 20cb41… 8def04… 2011-06-30 00:00:00 Ochlod…     2
-    ##  7 00161ef1-3471-4aba-9b0d-b6… 20cb41… 9deaa4… 2011-06-30 00:00:00 Argynn…     2
-    ##  8 00161ef1-3471-4aba-9b0d-b6… 20cb41… 9deaa4… 2011-06-30 00:00:00 Lasiom…     3
-    ##  9 00161ef1-3471-4aba-9b0d-b6… 20cb41… 9deaa4… 2011-06-30 00:00:00 Plebej…     1
-    ## 10 00161ef1-3471-4aba-9b0d-b6… 20cb41… aa351f… 2011-06-30 00:00:00 Lasiom…     3
-    ## # … with 13,849 more rows, and abbreviated variable names ¹​transect_ID,
-    ## #   ²​section_ID, ³​species_name
+    ## # A tibble: 17,257 × 6
+    ##    visit_ID        transect_ID section_ID date                species_name count
+    ##    <chr>           <chr>       <chr>      <dttm>              <chr>        <dbl>
+    ##  1 00161ef1-3471-… 20cb4183-0… 154dfcd1-… 2011-06-30 00:00:00 Lasiommata …     1
+    ##  2 00161ef1-3471-… 20cb4183-0… 4921b31a-… 2011-06-30 00:00:00 Lasiommata …     1
+    ##  3 00161ef1-3471-… 20cb4183-0… 8def0400-… 2011-06-30 00:00:00 Agriades op…     1
+    ##  4 00161ef1-3471-… 20cb4183-0… 8def0400-… 2011-06-30 00:00:00 Argynnis pa…     1
+    ##  5 00161ef1-3471-… 20cb4183-0… 8def0400-… 2011-06-30 00:00:00 Lasiommata …     1
+    ##  6 00161ef1-3471-… 20cb4183-0… 8def0400-… 2011-06-30 00:00:00 Ochlodes sy…     2
+    ##  7 00161ef1-3471-… 20cb4183-0… 9deaa4a8-… 2011-06-30 00:00:00 Argynnis pa…     2
+    ##  8 00161ef1-3471-… 20cb4183-0… 9deaa4a8-… 2011-06-30 00:00:00 Lasiommata …     3
+    ##  9 00161ef1-3471-… 20cb4183-0… 9deaa4a8-… 2011-06-30 00:00:00 Plebejus ar…     1
+    ## 10 00161ef1-3471-… 20cb4183-0… aa351fa3-… 2011-06-30 00:00:00 Lasiommata …     3
+    ## # ℹ 17,247 more rows
 
 ## Arrange a monitoring visit table
 
@@ -587,22 +592,22 @@ monVisTabSection <-  occTrans %>%
 monVisTabSection
 ```
 
-    ## # A tibble: 9,264 × 11
-    ##    visit_ID  recor…¹ trans…² section date                start…³ end_t…⁴ tempe…⁵
-    ##    <chr>     <chr>   <chr>   <chr>   <dttm>              <chr>   <chr>     <dbl>
-    ##  1 6c705183… 2f0ccd… d53aef… dfb927… 2013-07-23 00:00:00 11:45:… 11:56:…      25
-    ##  2 cdb21341… 2f0ccd… d53aef… dfb927… 2014-08-27 00:00:00 12:10:… 12:15:…      17
-    ##  3 30792c0e… 2f0ccd… d53aef… dfb927… 2015-07-04 00:00:00 12:00:… 12:05:…      14
-    ##  4 730f2f1c… 2f0ccd… d53aef… dfb927… 2018-07-10 00:00:00 12:21:… 12:25:…      16
-    ##  5 46ef2c75… 2f0ccd… d53aef… dfb927… 2021-08-21 00:00:00 15:43:… 15:47:…      17
-    ##  6 5a5062fa… 2f0ccd… d53aef… efc706… 2019-08-26 00:00:00 16:18:… 16:24:…      25
-    ##  7 8b2bcc9e… 2f0ccd… d53aef… efc706… 2021-07-01 00:00:00 15:47:… 15:52:…      19
-    ##  8 6c705183… 2f0ccd… d53aef… fff25b… 2013-07-23 00:00:00 12:07:… 12:18:…      25
-    ##  9 5a5062fa… 2f0ccd… d53aef… fff25b… 2019-08-26 00:00:00 16:23:… 16:29:…      25
-    ## 10 eec203f8… 2f0ccd… d53aef… fff25b… 2020-07-15 00:00:00 16:25:… 16:32:…      17
-    ## # … with 9,254 more rows, 3 more variables: cloud <dbl>, wind <lgl>,
-    ## #   completed <dbl>, and abbreviated variable names ¹​recorder_id, ²​transect_ID,
-    ## #   ³​start_time, ⁴​end_time, ⁵​temperature
+    ## # A tibble: 11,654 × 11
+    ##    visit_ID       recorder_id transect_ID section date                start_time
+    ##    <chr>          <chr>       <chr>       <chr>   <dttm>              <chr>     
+    ##  1 6c705183-d619… 2f0ccd4f-a… d53aef1f-7… dfb927… 2013-07-23 00:00:00 11:45:00  
+    ##  2 cdb21341-4660… 2f0ccd4f-a… d53aef1f-7… dfb927… 2014-08-27 00:00:00 12:10:00  
+    ##  3 30792c0e-6072… 2f0ccd4f-a… d53aef1f-7… dfb927… 2015-07-04 00:00:00 12:00:00  
+    ##  4 730f2f1c-3968… 2f0ccd4f-a… d53aef1f-7… dfb927… 2018-07-10 00:00:00 12:21:00  
+    ##  5 46ef2c75-b040… 2f0ccd4f-a… d53aef1f-7… dfb927… 2021-08-21 00:00:00 15:43:00  
+    ##  6 5a5062fa-3e84… 2f0ccd4f-a… d53aef1f-7… efc706… 2019-08-26 00:00:00 16:18:00  
+    ##  7 8b2bcc9e-5e47… 2f0ccd4f-a… d53aef1f-7… efc706… 2021-07-01 00:00:00 15:47:00  
+    ##  8 6c705183-d619… 2f0ccd4f-a… d53aef1f-7… fff25b… 2013-07-23 00:00:00 12:07:00  
+    ##  9 5a5062fa-3e84… 2f0ccd4f-a… d53aef1f-7… fff25b… 2019-08-26 00:00:00 16:23:00  
+    ## 10 eec203f8-d51a… 2f0ccd4f-a… d53aef1f-7… fff25b… 2020-07-15 00:00:00 16:25:00  
+    ## # ℹ 11,644 more rows
+    ## # ℹ 5 more variables: end_time <chr>, temperature <dbl>, cloud <dbl>,
+    ## #   wind <lgl>, completed <dbl>
 
 Then the corresponding operation on the transect level (survey square).
 We first select the columns of interest.
@@ -645,22 +650,22 @@ monVisTabTransect <- monVisTabTransect %>%
 monVisTabTransect
 ```
 
-    ## # A tibble: 1,431 × 10
-    ##    visit_ID    recor…¹ trans…² date                start…³ end_t…⁴ tempe…⁵ cloud
-    ##    <chr>       <chr>   <chr>   <dttm>              <chr>   <chr>     <dbl> <dbl>
-    ##  1 00161ef1-3… 9b98f4… 20cb41… 2011-06-30 00:00:00 14:55:… 16:14:…    24    20  
-    ##  2 005b7cff-0… fc6b9e… e0a3c1… 2016-06-09 00:00:00 13:00:… 17:30:…    20.8  18.8
-    ##  3 0087893a-9… e8bd88… 97cf7d… 2021-05-17 00:00:00 12:45:… 14:51:…    14.3  26.7
-    ##  4 008d7abe-c… a939d9… e3756f… 2011-08-03 00:00:00 13:10:… 14:30:…    24    46.7
-    ##  5 009cf41c-d… 6a4780… 911293… 2014-05-22 00:00:00 12:30:… 14:30:…    25    15  
-    ##  6 00c6d260-b… ef3230… 33db66… 2021-06-02 00:00:00 14:30:… 15:12:…    26     0  
-    ##  7 00ef24d4-c… 99c120… 7bb929… 2014-07-10 00:00:00 14:54:… 16:38:…    27     0  
-    ##  8 013b0437-4… 2b780a… a2834b… 2019-06-29 00:00:00 13:30:… 14:30:…    25    40  
-    ##  9 018d499b-e… c2f4a0… ccf555… 2015-06-12 00:00:00 11:00:… 14:11:…    17    30  
-    ## 10 01a22c7a-7… c2f4a0… ccf555… 2019-06-11 00:00:00 12:00:… 14:31:…    15    10  
-    ## # … with 1,421 more rows, 2 more variables: wind <dbl>, completed <dbl>, and
-    ## #   abbreviated variable names ¹​recorder_id, ²​transect_ID, ³​start_time,
-    ## #   ⁴​end_time, ⁵​temperature
+    ## # A tibble: 1,809 × 10
+    ##    visit_ID      recorder_id transect_ID date                start_time end_time
+    ##    <chr>         <chr>       <chr>       <dttm>              <chr>      <chr>   
+    ##  1 00161ef1-347… 9b98f4cf-9… 20cb4183-0… 2011-06-30 00:00:00 14:55:00   16:14:00
+    ##  2 005b7cff-026… fc6b9ecf-7… e0a3c18a-3… 2016-06-09 00:00:00 13:00:00   17:30:00
+    ##  3 0087893a-932… e8bd886a-6… 97cf7d8b-f… 2021-05-17 00:00:00 12:45:00   14:51:00
+    ##  4 008d7abe-c1b… a939d930-1… e3756fff-2… 2011-08-03 00:00:00 13:10:00   14:30:00
+    ##  5 009cf41c-d4d… 6a478010-e… 911293b2-2… 2014-05-22 00:00:00 12:30:00   14:30:00
+    ##  6 00c6d260-b25… ef323094-1… 33db66ae-4… 2021-06-02 00:00:00 14:30:00   15:12:00
+    ##  7 00ef24d4-ca4… 99c120bf-8… 7bb92922-4… 2014-07-10 00:00:00 14:54:00   16:38:00
+    ##  8 013b0437-4d4… 2b780a04-1… a2834b8c-8… 2019-06-29 00:00:00 13:30:00   14:30:00
+    ##  9 013fd8ae-799… <NA>        8d59235c-8… 2023-08-05 00:00:00 <NA>       <NA>    
+    ## 10 01725b60-2f1… <NA>        4d09c65d-8… 2023-08-02 00:00:00 <NA>       <NA>    
+    ## # ℹ 1,799 more rows
+    ## # ℹ 4 more variables: temperature <dbl>, cloud <dbl>, wind <dbl>,
+    ## #   completed <dbl>
 
 ## Arrange a site geographical information table
 
@@ -705,8 +710,12 @@ plot(siteGeoInfoSF["transect_ID"],
      add = T)
 ```
 
-![Transect locations of the Norwegian bumblebee and butterfly
-monitoring](figure/transect_loc-1.png)
+<figure>
+<img src="figure/transect_loc-1.png"
+alt="Transect locations of the Norwegian bumblebee and butterfly monitoring" />
+<figcaption aria-hidden="true">Transect locations of the Norwegian
+bumblebee and butterfly monitoring</figcaption>
+</figure>
 
 We now extract the start and end points from the linestring that
 represents the section. The eBMS just want the start and endpoints, so
@@ -780,13 +789,13 @@ tempSection <- siteGeoInfoTab %>%
 tempSection
 ```
 
-    ## Simple feature collection with 1571 features and 2 fields
-    ## Active geometry column: footprintWKT.section
-    ## Geometry type: LINESTRING
+    ## Simple feature collection with 1900 features and 2 fields
+    ## Active geometry column: geometry
+    ## Geometry type: POINT
     ## Dimension:     XY
-    ## Bounding box:  xmin: 5.221364 ymin: 58.0589 xmax: 13.18196 ymax: 64.9271
+    ## Bounding box:  xmin: 5.104642 ymin: 58.05901 xmax: 13.18148 ymax: 64.92705
     ## Geodetic CRS:  WGS 84
-    ## # A tibble: 1,571 × 6
+    ## # A tibble: 1,900 × 6
     ##    transect_ID       section      footprintWKT.section               start
     ##  * <chr>             <chr>            <LINESTRING [°]>         <POINT [°]>
     ##  1 d53aef1f-7502-47… dfb927… (5.221583 59.39742, 5.22… (5.221583 59.39742)
@@ -799,8 +808,8 @@ tempSection
     ##  8 d53aef1f-7502-47… cc8b58… (5.225234 59.39545, 5.22… (5.225234 59.39545)
     ##  9 d53aef1f-7502-47… b191a5… (5.226234 59.39467, 5.22… (5.226234 59.39467)
     ## 10 d53aef1f-7502-47… 0628de… (5.226706 59.39428, 5.22… (5.226706 59.39428)
-    ## # … with 1,561 more rows, and 2 more variables: end <POINT [°]>,
-    ## #   geometry <POINT>
+    ## # ℹ 1,890 more rows
+    ## # ℹ 2 more variables: end <POINT [°]>, geometry <POINT [°]>
 
 ``` r
 #Plot the linestring
@@ -865,23 +874,22 @@ siteGeoInfoTab <- siteGeoInfoTab %>%
 siteGeoInfoTab
 ```
 
-    ## # A tibble: 1,571 × 10
-    ##    transect_ID   secti…¹ lon_s…² lat_s…³ lon_e…⁴ lat_e…⁵ lon_c…⁶ lat_c…⁷ SRID_…⁸
-    ##    <chr>         <chr>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-    ##  1 d53aef1f-750… dfb927…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  2 d53aef1f-750… efc706…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  3 d53aef1f-750… fff25b…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  4 d53aef1f-750… 316c21…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  5 d53aef1f-750… e07338…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  6 d53aef1f-750… 34a6ae…    5.22    59.4    5.22    59.4    5.22    59.4    4326
-    ##  7 d53aef1f-750… 17696e…    5.23    59.4    5.22    59.4    5.22    59.4    4326
-    ##  8 d53aef1f-750… cc8b58…    5.23    59.4    5.23    59.4    5.23    59.4    4326
-    ##  9 d53aef1f-750… b191a5…    5.23    59.4    5.23    59.4    5.23    59.4    4326
-    ## 10 d53aef1f-750… 0628de…    5.23    59.4    5.23    59.4    5.23    59.4    4326
-    ## # … with 1,561 more rows, 1 more variable: monitoring_type <dbl>, and
-    ## #   abbreviated variable names ¹​section_ID, ²​lon_start_point, ³​lat_start_point,
-    ## #   ⁴​lon_end_point, ⁵​lat_end_point, ⁶​lon_centroid, ⁷​lat_centroid,
-    ## #   ⁸​SRID_for_all_coordinates
+    ## # A tibble: 1,900 × 10
+    ##    transect_ID          section_ID lon_start_point lat_start_point lon_end_point
+    ##    <chr>                <chr>                <dbl>           <dbl>         <dbl>
+    ##  1 d53aef1f-7502-4724-… dfb9272e-…            5.22            59.4          5.22
+    ##  2 d53aef1f-7502-4724-… efc706a7-…            5.22            59.4          5.22
+    ##  3 d53aef1f-7502-4724-… fff25b5b-…            5.22            59.4          5.22
+    ##  4 d53aef1f-7502-4724-… 316c2185-…            5.22            59.4          5.22
+    ##  5 d53aef1f-7502-4724-… e0733813-…            5.22            59.4          5.22
+    ##  6 d53aef1f-7502-4724-… 34a6aebd-…            5.22            59.4          5.22
+    ##  7 d53aef1f-7502-4724-… 17696e5a-…            5.23            59.4          5.22
+    ##  8 d53aef1f-7502-4724-… cc8b5806-…            5.23            59.4          5.23
+    ##  9 d53aef1f-7502-4724-… b191a51d-…            5.23            59.4          5.23
+    ## 10 d53aef1f-7502-4724-… 0628debb-…            5.23            59.4          5.23
+    ## # ℹ 1,890 more rows
+    ## # ℹ 5 more variables: lat_end_point <dbl>, lon_centroid <dbl>,
+    ## #   lat_centroid <dbl>, SRID_for_all_coordinates <dbl>, monitoring_type <dbl>
 
 ## Arrange a habitat type table
 
@@ -913,20 +921,20 @@ habTypeTab <- occTrans %>%
 habTypeTab
 ```
 
-    ## # A tibble: 1,572 × 3
-    ##    transect_ID                          section_ID                       habit…¹
-    ##    <chr>                                <chr>                            <chr>  
-    ##  1 d53aef1f-7502-4724-9be7-dd49f44dce59 dfb9272e-be2a-4a7e-b882-4cc5a79… grassl…
-    ##  2 d53aef1f-7502-4724-9be7-dd49f44dce59 efc706a7-9cef-4199-b5bf-5f5b975… grassl…
-    ##  3 d53aef1f-7502-4724-9be7-dd49f44dce59 fff25b5b-7a7c-4fcc-a927-cb6047a… grassl…
-    ##  4 d53aef1f-7502-4724-9be7-dd49f44dce59 316c2185-30c1-4077-9f39-52cfe5b… grassl…
-    ##  5 d53aef1f-7502-4724-9be7-dd49f44dce59 e0733813-696e-4ec5-9986-d98fe09… grassl…
-    ##  6 d53aef1f-7502-4724-9be7-dd49f44dce59 34a6aebd-a193-4851-a46b-98417fe… grassl…
-    ##  7 d53aef1f-7502-4724-9be7-dd49f44dce59 17696e5a-5f7a-4a2b-b879-b3d6e19… grassl…
-    ##  8 d53aef1f-7502-4724-9be7-dd49f44dce59 cc8b5806-0a52-4d58-8a6c-73c9022… grassl…
-    ##  9 d53aef1f-7502-4724-9be7-dd49f44dce59 b191a51d-6385-43d5-98a0-238c5e2… grassl…
-    ## 10 d53aef1f-7502-4724-9be7-dd49f44dce59 0628debb-a252-4e14-ba19-0ef29a6… grassl…
-    ## # … with 1,562 more rows, and abbreviated variable name ¹​habitat_Type
+    ## # A tibble: 1,901 × 3
+    ##    transect_ID                          section_ID                  habitat_Type
+    ##    <chr>                                <chr>                       <chr>       
+    ##  1 d53aef1f-7502-4724-9be7-dd49f44dce59 dfb9272e-be2a-4a7e-b882-4c… grassland   
+    ##  2 d53aef1f-7502-4724-9be7-dd49f44dce59 efc706a7-9cef-4199-b5bf-5f… grassland   
+    ##  3 d53aef1f-7502-4724-9be7-dd49f44dce59 fff25b5b-7a7c-4fcc-a927-cb… grassland   
+    ##  4 d53aef1f-7502-4724-9be7-dd49f44dce59 316c2185-30c1-4077-9f39-52… grassland   
+    ##  5 d53aef1f-7502-4724-9be7-dd49f44dce59 e0733813-696e-4ec5-9986-d9… grassland   
+    ##  6 d53aef1f-7502-4724-9be7-dd49f44dce59 34a6aebd-a193-4851-a46b-98… grassland   
+    ##  7 d53aef1f-7502-4724-9be7-dd49f44dce59 17696e5a-5f7a-4a2b-b879-b3… grassland   
+    ##  8 d53aef1f-7502-4724-9be7-dd49f44dce59 cc8b5806-0a52-4d58-8a6c-73… grassland   
+    ##  9 d53aef1f-7502-4724-9be7-dd49f44dce59 b191a51d-6385-43d5-98a0-23… grassland   
+    ## 10 d53aef1f-7502-4724-9be7-dd49f44dce59 0628debb-a252-4e14-ba19-0e… grassland   
+    ## # ℹ 1,891 more rows
 
 ## Arrange a species name table
 
@@ -946,7 +954,7 @@ speciesNameTab <- occTrans %>%
 speciesNameTab
 ```
 
-    ## # A tibble: 60 × 3
+    ## # A tibble: 61 × 3
     ##    national_species_latin   fauna_europea_species_latin local_species_norwegian 
     ##    <chr>                    <chr>                       <chr>                   
     ##  1 Pieris brassicae         Pieris brassicae            Stor Kålsommerfugl      
@@ -959,7 +967,29 @@ speciesNameTab
     ##  8 Callophrys rubi          Callophrys rubi             Grønnstjertvinge        
     ##  9 Boloria selene           Boloria selene              Brunflekket Perlemorvin…
     ## 10 Lasiommata petropolitana Lasiommata petropolitana    Bergringvinge           
-    ## # … with 50 more rows
+    ## # ℹ 51 more rows
+
+# Check the min and max dates for the data
+
+``` r
+monVisTabTransect %>% summarize(min_date = min(date),
+                           max_date = max(date))
+```
+
+    ## # A tibble: 1 × 2
+    ##   min_date            max_date           
+    ##   <dttm>              <dttm>             
+    ## 1 2009-05-12 00:00:00 2023-08-27 00:00:00
+
+``` r
+lepiCountTab %>% summarize(min_date = min(date),
+                           max_date = max(date))
+```
+
+    ## # A tibble: 1 × 2
+    ##   min_date            max_date           
+    ##   <dttm>              <dttm>             
+    ## 1 2009-05-12 00:00:00 2023-08-27 00:00:00
 
 # Export the BMS data into CSV-files
 
@@ -1040,7 +1070,7 @@ table of species names.
 uniqueVisits <- read_csv("out/uniqueVisits.csv")
 ```
 
-    ## Rows: 9264 Columns: 4
+    ## Rows: 11654 Columns: 4
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: ","
     ## chr  (3): visit_ID, transect_ID, section_ID
@@ -1053,7 +1083,7 @@ uniqueVisits <- read_csv("out/uniqueVisits.csv")
 lepiCountTabNoZeroes <- read_csv("out/ButterflyCountDataTableNoZeroes.csv")
 ```
 
-    ## Rows: 13859 Columns: 6
+    ## Rows: 17257 Columns: 6
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: ","
     ## chr  (4): visit_ID, transect_ID, section_ID, species_name
@@ -1067,7 +1097,7 @@ lepiCountTabNoZeroes <- read_csv("out/ButterflyCountDataTableNoZeroes.csv")
 speciesNameTab <- read_csv("out/SpeciesNameTable.csv")
 ```
 
-    ## Rows: 60 Columns: 3
+    ## Rows: 61 Columns: 3
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: ","
     ## chr (3): national_species_latin, fauna_europea_species_latin, local_species_...

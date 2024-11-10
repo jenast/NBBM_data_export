@@ -7,7 +7,7 @@ output:
 ---
 **With data formatting for the European Butterfly Monitoring Scheme**
 
-**Verified to work with the 2023 published version of the data (exporting data from 2009 - 2022 to the eBMS format). But eBMS only request data including 2021, so we filter out the 2022 data.** 
+**Verified to work with the 2024 published version of the data (exporting data from 2009 - 2023 to the eBMS format). Note that there seems to be a discrepancy with the earlier data version in GBIF, where we now have fewer occurrence records exported to GBIF. I've checked and the number of lepidoptera records match the earlier data version. The bumblebee records doesn't display any obvious errors either. The source of the discrepancy remains to be found. It could have something to do with changes in how we report zero occurrences. In any case, the lepidoptera data should conform to the earlier exports.**
 
 
 ```{r, include = F}
@@ -116,7 +116,7 @@ eventRaw <- read_delim("GBIF_data/event.txt",
                        delim = "\t",
                        locale = locale(encoding = "UTF-8"),
                        col_types = cols(id = col_character(),
-  type = col_character(),
+ # type = col_character(), #doesn't contain column 'type' anymore
   modified = col_datetime(format = ""),
   ownerInstitutionCode = col_character(),
   dynamicProperties = col_character(),
@@ -286,6 +286,7 @@ occTrans <- lepiRaw %>%
 #  print(n = 1, width = Inf)
 ```
 
+
 Further arranging of the data to the BMS format
 ===========
 The following section only pertains to the BMS format, but could be used as an example for other uses, where you want to normalize the data (split it into separate tables with unique records for each row).
@@ -293,11 +294,11 @@ The following section only pertains to the BMS format, but could be used as an e
 
 Subset the data according to time
 --------------
-This time around, the BMS wants all data including 2021.
+This time around, the BMS wants all data including 2023.
 
 ```{r}
 occTrans <- occTrans %>% 
-  filter(eventDate.section < '2022-01-01')
+  filter(eventDate.section < '2024-01-01')
 ```
 
 
@@ -599,6 +600,21 @@ speciesNameTab <- occTrans %>%
 
 speciesNameTab
 ```
+
+Check the min and max dates for the data
+===========
+
+```{r}
+monVisTabTransect %>% summarize(min_date = min(date),
+                           max_date = max(date))
+
+lepiCountTab %>% summarize(min_date = min(date),
+                           max_date = max(date))
+
+
+```
+
+
 
 
 Export the BMS data into CSV-files
